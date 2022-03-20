@@ -1,0 +1,34 @@
+{
+  "background": {
+    "persistent": true,
+    "scripts": [ "js/background.js" ]
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [{
+    "js": [
+      "js/content.js"
+    ],
+    "matches": [
+      "https://search.google.com/*"
+    ],
+    "run_at": "document_end"
+  }],
+  "web_accessible_resources": ["js/script.js"],
+  "description": "a helper to efficiently download data from GSC",
+  "manifest_version": 2,
+  "name": "GSC crawl stats downloader",
+  "homepage_url": "https://valentin.app/gscDownloader.html",
+  "permissions": [
+    "https://search.google.com/",
+    "tabs",
+    "downloads",
+    "storage",
+    "unlimitedStorage"
+  ],
+  "options_page": "options.html",
+  "browser_action": {},
+  "version": "0.1"
+}
