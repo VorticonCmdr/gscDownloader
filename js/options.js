@@ -52,7 +52,41 @@ $table.bootstrapTable({
   exportTypes: exportTypes
 });
 let selection = [];
-let background = chrome.extension.getBackgroundPage();
+
+let background = {
+  settings: {}
+}
+
+chrome.tabs.query({url:'https://search.google.com/*'}, function (tabs) {
+  if (!tabs) {
+    return;
+  }
+  if (tabs.length < 1) {
+    return;
+  }
+  chrome.tabs.sendMessage(tabs[0].id, {type: "getWIZ"}, function(response) {
+    background.settings = response.data;
+    let property = background.settings['hostname'] || background.settings['resource_id'];
+    $('#downloadBtnTxt').text(property);
+  });
+});
+
+chrome.runtime.onMessage.addListener(
+  function(request, sender, sendResponse) {
+
+    let tabURL = new URL(sender.tab.url);
+
+    switch (request.type) {
+      case "WIZ_global_data":
+        background.settings = request?.data || {};
+        background.settings['resource_id'] = tabURL.searchParams.get('resource_id');
+        background.settings['hostname'] = tabURL.searchParams.get('hostname');
+        break;
+      default:
+        console.log(request);
+    }
+  }
+);
 
 let dlSettings = {
   resource_id: background.settings.resource_id
