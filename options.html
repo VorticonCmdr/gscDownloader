@@ -41,6 +41,21 @@
                 <option value="googlebot_type">googlebot type</option>
                 <option value="summary">summary</option>
               </select>
+
+              <div class="btn-group">
+                <button class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button" name="btnDL" title="download crawl stats">
+                  <i class="glyphicon glyphicon-save"></i> <span id="downloadBtnTxt">download crawl stats</span>
+                </button>
+                <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  <span class="caret"></span>
+                  <span class="sr-only">Toggle Dropdown</span>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a id="downloadBtn" href="#">fetch</a></li>
+                  <li><a id="downloadBtnSave" href="#">fetch & backup</a></li>
+                </ul>
+              </div>
+
             </div>
       	  </div>
 
@@ -52,7 +67,6 @@
 	             data-sort-order="desc"
                data-pagination="true"
                data-page-size="100"
-               data-buttons="buttons"
                data-show-button-text="true"
                data-show-columns="true">
           <thead>

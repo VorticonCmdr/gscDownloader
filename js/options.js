@@ -1,3 +1,6 @@
+let chromeDownload = false;
+let dlQueue = 0;
+
 let chart;
 const $table = $('#table');
 const colors = {
@@ -43,6 +46,11 @@ $('#metric').on('change', function(event) {
 const exportTypes = ['csv', 'excel', 'xlsx'];
 
 let tableData = [];
+$table.bootstrapTable('destroy');
+$table.bootstrapTable({
+  data: tableData,
+  exportTypes: exportTypes
+});
 let selection = [];
 let background = chrome.extension.getBackgroundPage();
 
@@ -63,7 +71,21 @@ $('#category').on('change', function(event) {
   generateChart();
 });
 
+let totalData = {};
+function mergeGSCdata(gscData, hostname) {
+  if (!totalData[hostname]) {
+    return gscData;
+  }
+  Object.keys(gscData).forEach((date) => {
+    totalData[hostname][date] = gscData[date];
+  });
+  gscData = totalData[hostname];
+  return totalData[hostname];
+}
+
 chrome.storage.local.get(null, function(data) {
+  totalData = data;
+
   Object.keys(data).forEach((key) => {
     $('#hostname').append($('<option>', {
       value: key,
@@ -334,9 +356,16 @@ function downloadZIPs() {
     dlSettings['hostname'] = background.settings.hostname;
   }
   generateURLs();
+  dlQueue = selection.length+1;
   downloadSummary()
 }
 
+function calcDownloadProgress() {
+  dlQueue--;
+  document.title = `${dlQueue} to download`;
+}
+
+let dlGscData = {}
 function downloadSummary() {
   let dlURL = new URL("https://search.google.com/u/"+background.settings.QrtxK+"/search-console/export/crawl-stats");
   let params = {
@@ -365,16 +394,22 @@ function downloadSummary() {
       return Promise.resolve(response.blob());
     })
     .then(function (blob) {
-      var blobURL = window.URL.createObjectURL(blob);
+      calcDownloadProgress();
 
-      chrome.downloads.download({
-        url: blobURL,
-        filename: 'gscData/'+filename
-      }, function (id) {
-        if(chrome.runtime.lastError) {
-          console.warn("Whoops.. " + chrome.runtime.lastError.message);
-        }
-      });
+      if (chromeDownload) {
+        var blobURL = window.URL.createObjectURL(blob);
+        chrome.downloads.download({
+          saveAs: false,
+          conflictAction: 'uniquify',
+          url: blobURL,
+          filename: 'gscData/'+filename
+        }, function (id) {
+          if(chrome.runtime.lastError) {
+            console.warn("Whoops.. " + chrome.runtime.lastError.message);
+          }
+        });
+      }
+
       return blob;
     })
     .then(JSZip.loadAsync)
@@ -383,20 +418,20 @@ function downloadSummary() {
         let csvResult = Papa.parse(fileData,{dynamicTyping: true, header: true});
         csvResult.data.forEach((item, i) => {
 
-          if (gscData[item['Date']]) {
-            gscData[item['Date']]['summary'] = {};
+          if (dlGscData[item['Date']]) {
+            dlGscData[item['Date']]['summary'] = {};
           } else {
-            gscData[item['Date']] = {
+            dlGscData[item['Date']] = {
               'summary': {}
             };
           }
-          gscData[item['Date']]['summary']['category'] = 'summary'
-          gscData[item['Date']]['summary']['type'] = 'total';
-          gscData[item['Date']]['summary']['resource_id'] = dlSettings['resource_id'];
-          gscData[item['Date']]['summary']['hostname'] = dlSettings['hostname'] || dlSettings['resource_id'];
-          gscData[item['Date']]['summary']['Average response time (ms)'] = item['Average response time (ms)'];
-          gscData[item['Date']]['summary']['Total crawl requests'] = item['Total crawl requests'];
-          gscData[item['Date']]['summary']['Total download size (Bytes)'] = item['Total download size (Bytes)'];
+          dlGscData[item['Date']]['summary']['category'] = 'summary'
+          dlGscData[item['Date']]['summary']['type'] = 'total';
+          dlGscData[item['Date']]['summary']['resource_id'] = dlSettings['resource_id'];
+          dlGscData[item['Date']]['summary']['hostname'] = dlSettings['hostname'] || dlSettings['resource_id'];
+          dlGscData[item['Date']]['summary']['Average response time (ms)'] = item['Average response time (ms)'];
+          dlGscData[item['Date']]['summary']['Total crawl requests'] = item['Total crawl requests'];
+          dlGscData[item['Date']]['summary']['Total download size (Bytes)'] = item['Total download size (Bytes)'];
         });
 
         downloadStats();
@@ -411,12 +446,26 @@ function downloadStats() {
   var row = selection.shift();
 
   if (!row) {
-    tableData = gscDataFlat();
+    chromeDownload = false;
+    gscData = dlGscData;
+
     var save = {};
     var hostname = dlSettings.hostname || dlSettings['resource_id'];
-    save[hostname] = gscData;
+    save[hostname] = mergeGSCdata(dlGscData, hostname);
     chrome.storage.local.set(save);
 
+    filters.hostname = hostname;
+    if ([...document.querySelector("#hostname").options].map( opt => opt.value ).includes(hostname)) {
+      $('#hostname').val(hostname).change();
+    } else {
+      $('#hostname').append($('<option>', {
+        value: hostname,
+        text: hostname
+      }));
+      $('#hostname').val(hostname);
+    }
+
+    tableData = gscDataFlat();
     $table.bootstrapTable('destroy');
     $table.bootstrapTable({
       data: tableData,
@@ -440,18 +489,22 @@ function downloadStats() {
       return Promise.resolve(response.blob());
     })
     .then(function (blob) {
-      var blobURL = window.URL.createObjectURL(blob);
-
-      chrome.downloads.download({
-        url: blobURL,
-        filename: 'gscData/'+filename
-      }, function (id) {
-        if(chrome.runtime.lastError) {
-          // Something went wrong
-          console.warn("Whoops.. " + chrome.runtime.lastError.message);
-          // Maybe explain that to the user too?
-        }
-      });
+      calcDownloadProgress();
+      if (chromeDownload) {
+        var blobURL = window.URL.createObjectURL(blob);
+        chrome.downloads.download({
+          saveAs: false,
+          conflictAction: 'uniquify',
+          url: blobURL,
+          filename: 'gscData/'+filename
+        }, function (id) {
+          if(chrome.runtime.lastError) {
+            // Something went wrong
+            console.warn("Whoops.. " + chrome.runtime.lastError.message);
+            // Maybe explain that to the user too?
+          }
+        });
+      }
       return blob;
     })
     .then(JSZip.loadAsync)
@@ -468,19 +521,19 @@ function downloadStats() {
 
             csvResult.data.forEach((item, i) => {
 
-              if (gscData[item['Date']]) {
-                gscData[item['Date']][dataType] = {};
+              if (dlGscData[item['Date']]) {
+                dlGscData[item['Date']][dataType] = {};
               } else {
-                gscData[item['Date']] = {};
-                gscData[item['Date']][dataType] = {};
+                dlGscData[item['Date']] = {};
+                dlGscData[item['Date']][dataType] = {};
               }
-              gscData[item['Date']][dataType]['category'] = row.category;
-              gscData[item['Date']][dataType]['type'] = dataType;
-              gscData[item['Date']][dataType]['resource_id'] = dlSettings['resource_id'];
-              gscData[item['Date']][dataType]['hostname'] = dlSettings['hostname'] || dlSettings['resource_id'];
-              gscData[item['Date']][dataType]['Average response time (ms)'] = item['Average response time (ms)'];
-              gscData[item['Date']][dataType]['Total crawl requests'] = item['Total crawl requests'];
-              gscData[item['Date']][dataType]['Total download size (Bytes)'] = item['Total download size (Bytes)'];
+              dlGscData[item['Date']][dataType]['category'] = row.category;
+              dlGscData[item['Date']][dataType]['type'] = dataType;
+              dlGscData[item['Date']][dataType]['resource_id'] = dlSettings['resource_id'];
+              dlGscData[item['Date']][dataType]['hostname'] = dlSettings['hostname'] || dlSettings['resource_id'];
+              dlGscData[item['Date']][dataType]['Average response time (ms)'] = item['Average response time (ms)'];
+              dlGscData[item['Date']][dataType]['Total crawl requests'] = item['Total crawl requests'];
+              dlGscData[item['Date']][dataType]['Total download size (Bytes)'] = item['Total download size (Bytes)'];
             });
 
             setTimeout(downloadStats, 500);
@@ -495,18 +548,11 @@ function downloadStats() {
 
 }
 
-function buttons () {
-  return {
-    btnDL: {
-      text: '<span id="downloadBtnTxt">download crawl stats</span>',
-      icon: 'glyphicon-save',
-      event: downloadZIPs,
-      attributes: {
-        title: 'download crawl stats'
-      }
-    }
-  }
-}
+$('#downloadBtn').on('click', downloadZIPs);
+$('#downloadBtnSave').on('click', function() {
+  chromeDownload = true;
+  downloadZIPs();
+});
 
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
@@ -522,3 +568,8 @@ chrome.runtime.onMessage.addListener(
     }
   }
 );
+
+setTimeout(function() {
+  let property = background.settings.hostname || background.settings.resource_id;
+  $('#downloadBtnTxt').text(property);
+}, 100);
