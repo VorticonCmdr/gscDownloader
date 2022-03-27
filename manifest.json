@@ -35,7 +35,7 @@
     ],
     "run_at": "document_end"
   }],
-  "description": "a helper to efficiently download data from GSC",
+  "description": "a helper to efficiently download crawl data from GSC",
   "manifest_version": 3,
   "name": "GSC crawl stats downloader",
   "homepage_url": "https://valentin.app/gscDownloader.html",
