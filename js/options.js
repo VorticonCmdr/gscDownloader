@@ -1,5 +1,6 @@
 let chromeDownload = false;
 let dlQueue = 0;
+let dlProgress = 0;
 
 let chart;
 const $table = $('#table');
@@ -50,7 +51,8 @@ $table.bootstrapTable('destroy');
 $table.bootstrapTable({
   data: tableData,
   exportTypes: exportTypes
-});
+}).bootstrapTable('showLoading');
+
 let selection = [];
 
 let background = {
@@ -65,6 +67,15 @@ chrome.tabs.query({url:'https://search.google.com/*'}, function (tabs) {
     return;
   }
   chrome.tabs.sendMessage(tabs[0].id, {type: "getWIZ"}, function(response) {
+    if(chrome.runtime.lastError) {
+      console.warn(chrome.runtime.lastError.message);
+      $('#errorMsg').show();
+      return;
+    }
+    $('#errorMsg').hide();
+    if (!response || !response.data) {
+      return;
+    }
     background.settings = response.data;
     let property = background.settings['hostname'] || background.settings['resource_id'];
     $('#downloadBtnTxt').text(property);
@@ -146,11 +157,13 @@ chrome.storage.local.get(null, function(data) {
     filters.hostname = this.value;
     gscData = data[filters.hostname];
     tableData = gscDataFlat();
+
     $table.bootstrapTable('destroy');
     $table.bootstrapTable({
       data: tableData,
       exportTypes: exportTypes
     });
+
     $table.bootstrapTable('filterBy', filters);
     generateChart();
   });
@@ -391,16 +404,25 @@ function downloadZIPs() {
   }
   generateURLs();
   dlQueue = selection.length+1;
-  downloadSummary()
+  dlProgress = selection.length;
+  $('#fetchBar').show();
+  downloadSummary();
 }
 
 function calcDownloadProgress() {
   dlQueue--;
   document.title = `${dlQueue} to download`;
+  $('#fetchProgress').text(`${dlQueue} to download`);
+  let w = Math.floor((1-(selection.length/dlProgress))*100);
+  $('#fetchProgress').css("width", `${w}%`);
 }
 
 let dlGscData = {}
 function downloadSummary() {
+  if (!background.settings.QrtxK) {
+    $('#errorMsg').show();
+    return;
+  }
   let dlURL = new URL("https://search.google.com/u/"+background.settings.QrtxK+"/search-console/export/crawl-stats");
   let params = {
     hl: "en",
@@ -480,6 +502,8 @@ function downloadStats() {
   var row = selection.shift();
 
   if (!row) {
+    $('#fetchBar').hide();
+    document.title = 'GSC crawl stats downloader';
     chromeDownload = false;
     gscData = dlGscData;
 
@@ -500,11 +524,13 @@ function downloadStats() {
     }
 
     tableData = gscDataFlat();
+
     $table.bootstrapTable('destroy');
     $table.bootstrapTable({
       data: tableData,
       exportTypes: exportTypes
     });
+
     $table.bootstrapTable('filterBy', filters);
     generateChart();
 
@@ -578,6 +604,7 @@ function downloadStats() {
     })
     .catch(error => {
       console.error('Error:', error);
+      setTimeout(downloadStats, 500);
     });
 
 }
@@ -596,6 +623,7 @@ chrome.runtime.onMessage.addListener(
         let tabURL = new URL(sender.tab.url);
         let property = tabURL.searchParams.get('hostname') || tabURL.searchParams.get('resource_id');
         $('#downloadBtnTxt').text(property);
+        $('#errorMsg').hide();
         break;
       default:
         console.log(request);

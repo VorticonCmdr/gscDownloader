@@ -15,9 +15,25 @@
   <body>
 
     <div class="container">
+
+      <div id="errorMsg" class="row" style="display: none">
+        <div class="alert alert-danger" role="alert">
+          <span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span>
+          <span class="sr-only">Error:</span>
+          Please (re)load GSC tab to enable connection.
+        </div>
+      </div>
+
+      <div id="fetchBar" class="row" style="display: none">
+        <div class="progress">
+          <div id="fetchProgress" class="progress-bar progress-bar-info" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%;"></div>
+        </div>
+      </div>
+
       <div id="chart-and-filter" class="row">
         <div id="chart" class="c3" style="height: 400px; position: relative; width: 98%;margin-left: auto;margin-right: auto;"></div>
       </div>
+
 
       <div class="row">
       	<div id="toolbar">
