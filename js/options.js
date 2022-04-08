@@ -45,13 +45,75 @@ $('#metric').on('change', function(event) {
 });
 
 const exportTypes = ['csv', 'excel', 'xlsx'];
+const columns = [
+  {
+    title: 'Date',
+    field: 'Date',
+    sortable: true,
+    forceExport: true
+  },
+  {
+    title: 'resource_id',
+    field: 'resource_id',
+    sortable: true,
+    visible: false,
+    forceExport: true
+  },
+  {
+    title: 'hostname',
+    field: 'hostname',
+    sortable: true,
+    forceExport: true
+  },
+  {
+    title: 'category',
+    field: 'category',
+    sortable: true,
+    visible: false,
+    forceExport: true
+  },
+  {
+    field: 'type',
+    title: 'type',
+    sortable: true,
+    forceExport: true
+  },
+  {
+    title: 'Total crawl requests',
+    field: 'Total crawl requests',
+    sortable: true,
+    formatter: numberToLocaleString,
+    align: 'right',
+    forceExport: true
+  },
+  {
+    title: 'Total download size (Bytes)',
+    field: 'Total download size (Bytes)',
+    sortable: true,
+    formatter: numberToLocaleString,
+    align: 'right',
+    forceExport: true
+  },
+  {
+    title: 'Average response time (ms)',
+    field: 'Average response time (ms)',
+    sortable: true,
+    formatter: numberToLocaleString,
+    align: 'right',
+    forceExport: true
+  }
+];
 
 let tableData = [];
-$table.bootstrapTable('destroy');
-$table.bootstrapTable({
+/*
+$table.bootstrapTable('destroy').bootstrapTable({
   data: tableData,
-  exportTypes: exportTypes
+  exportTypes: exportTypes,
+  exportHiddenCells: true,
+  exportDataType: 'all',
+  columns: columns
 }).bootstrapTable('showLoading');
+*/
 
 let selection = [];
 
@@ -144,10 +206,12 @@ chrome.storage.local.get(null, function(data) {
     gscData = data[hostname];
     tableData = gscDataFlat();
 
-    $table.bootstrapTable('destroy');
-    $table.bootstrapTable({
+    $table.bootstrapTable('destroy').bootstrapTable({
       data: tableData,
-      exportTypes: exportTypes
+      exportTypes: exportTypes,
+      exportHiddenCells: true,
+      exportDataType: 'all',
+      columns: columns
     });
     $table.bootstrapTable('filterBy', filters);
     generateChart();
@@ -161,7 +225,10 @@ chrome.storage.local.get(null, function(data) {
     $table.bootstrapTable('destroy');
     $table.bootstrapTable({
       data: tableData,
-      exportTypes: exportTypes
+      exportTypes: exportTypes,
+      exportHiddenCells: true,
+      exportDataType: 'all',
+      columns: columns
     });
 
     $table.bootstrapTable('filterBy', filters);
@@ -525,10 +592,12 @@ function downloadStats() {
 
     tableData = gscDataFlat();
 
-    $table.bootstrapTable('destroy');
-    $table.bootstrapTable({
+    $table.bootstrapTable('destroy').bootstrapTable({
       data: tableData,
-      exportTypes: exportTypes
+      exportTypes: exportTypes,
+      exportHiddenCells: true,
+      exportDataType: 'all',
+      columns: columns
     });
 
     $table.bootstrapTable('filterBy', filters);

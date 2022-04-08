@@ -77,26 +77,16 @@
 
         </div>
         <table id="table"
-               data-toolbar="#toolbar"
-               data-show-export="true"
-               data-sort-name="Date"
-	             data-sort-order="desc"
-               data-pagination="true"
-               data-page-size="100"
-               data-show-button-text="true"
-               data-show-columns="true">
-          <thead>
-            <tr>
-              <th data-field="Date" data-sortable="true">Date</th>
-              <th data-field="resource_id" data-sortable="true" data-visible="false">resource_id</th>
-              <th data-field="hostname" data-sortable="true">hostname</th>
-              <th data-field="category" data-sortable="true">category</th>
-              <th data-field="type" data-sortable="true">type</th>
-              <th data-field="Total crawl requests" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Total crawl requests</th>
-              <th data-field="Total download size (Bytes)" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Total download size (Bytes)</th>
-              <th data-field="Average response time (ms)" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Average response time (ms)</th>
-            </tr>
-          </thead>
+          data-toolbar="#toolbar"
+          data-show-export="true"
+          data-export-data-type="all"
+          data-sort-name="Date"
+          data-sort-order="desc"
+          data-pagination="true"
+          data-page-size="100"
+          data-page-list="[10,100,1000]"
+          data-show-button-text="true"
+          data-show-columns="true">
         </table>
 
       </div>

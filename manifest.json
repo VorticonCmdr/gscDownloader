@@ -39,5 +39,5 @@
   "manifest_version": 3,
   "name": "GSC crawl stats downloader",
   "homepage_url": "https://valentin.app/gscDownloader.html",
-  "version": "1.0"
+  "version": "1.1"
 }
