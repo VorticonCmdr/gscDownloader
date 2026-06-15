@@ -6,99 +6,30 @@
 
     <title>GSC crawl stats export</title>
 
-    <link rel="stylesheet" href="css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="css/c3.min.css"/>
-    <link rel="stylesheet" href="css/bootstrap-table.min.v1.19.1.css"/>
+    <link rel="stylesheet" href="css/bootstrap.v5.3.min.css"/>
+    <link rel="stylesheet" href="/bootstrap-icons-1.8.1/bootstrap-icons.css"/>
 
   </head>
 
   <body>
-
     <div class="container">
-      <div id="chart-and-filter" class="row">
-        <div id="chart" class="c3" style="height: 400px; position: relative; width: 98%;margin-left: auto;margin-right: auto;"></div>
-      </div>
-
-      <div class="row">
-      	<div id="toolbar">
-      	  <div class="form-inline" role="form">
-            <div class="form-group">
-              <label>filter:</label>
-
-              <select id="hostname" class="form-control">
-              </select>
-
-              <select id="metric" class="form-control">
-                <option value="Total crawl requests">Total crawl requests</option>
-                <option value="Total download size (Bytes)">Total download size (Bytes)</option>
-                <option value="Average response time (ms)">Average response time (ms)</option>
-              </select>
-
-              <select id="category" class="form-control">
-                <option value="response">response</option>
-                <option value="file_type">file type</option>
-                <option value="purpose">purpose</option>
-                <option value="googlebot_type">googlebot type</option>
-                <option value="summary">summary</option>
-              </select>
-
-              <div class="btn-group">
-                <button class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button" name="btnDL" title="download crawl stats">
-                  <i class="glyphicon glyphicon-save"></i> <span id="downloadBtnTxt">download crawl stats</span>
-                </button>
-                <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  <span class="caret"></span>
-                  <span class="sr-only">Toggle Dropdown</span>
-                </button>
-                <ul class="dropdown-menu">
-                  <li><a id="downloadBtn" href="#">fetch</a></li>
-                  <li><a id="downloadBtnSave" href="#">fetch & backup</a></li>
-                </ul>
-              </div>
-
-            </div>
-      	  </div>
-
+      <div class="row my-4">
+        <div class="d-grid gap-2 col-6 mx-auto">
+          <button class="btn btn-primary" type="button" id="backup">backup crawl stats data</button>
         </div>
-        <table id="table"
-               data-toolbar="#toolbar"
-               data-show-export="true"
-               data-sort-name="Date"
-	             data-sort-order="desc"
-               data-pagination="true"
-               data-page-size="100"
-               data-show-button-text="true"
-               data-show-columns="true">
-          <thead>
-            <tr>
-              <th data-field="Date" data-sortable="true">Date</th>
-              <th data-field="resource_id" data-sortable="true" data-visible="false">resource_id</th>
-              <th data-field="hostname" data-sortable="true">hostname</th>
-              <th data-field="category" data-sortable="true">category</th>
-              <th data-field="type" data-sortable="true">type</th>
-              <th data-field="Total crawl requests" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Total crawl requests</th>
-              <th data-field="Total download size (Bytes)" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Total download size (Bytes)</th>
-              <th data-field="Average response time (ms)" data-formatter="numberToLocaleString" data-align="right" data-sortable="true">Average response time (ms)</th>
-            </tr>
-          </thead>
-        </table>
-
       </div>
+      <div class="row my-4">
+        <div class="bg-secondary-subtle px-4 py-4 text-center" id="drop-area">
+          <file-drop accept="application/zip">
+            <samp>drop-area for crawl stats backup import</samp>
+          </file-drop>
+          <input class="center-block" type="file" id="fileInput" name="fileInput" accept="application/zip">
+        </div>
+      </div>
+    </div>
 
-    </div><!-- /.container -->
-
-    <script type="text/javascript" src="js/jquery-3.5.0.min.js"></script>
-    <script type="text/javascript" src="js/jszip.min.v3.7.1.js"></script>
-    <script type="text/javascript" src="js/papaparse.min.v5.3.2.js"></script>
-    <script type="text/javascript" src="js/d3.min.js"></script>
-    <script type="text/javascript" src="js/c3.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap-3.3.7.min.js"></script>
-    <script type="text/javascript" src="js/xlsx.core.min.js"></script>
-    <script type="text/javascript" src="js/tableExport.min.v1.22.0.js"></script>
-    <script type="text/javascript" src="js/bootstrap-table.min.v1.19.1.js"></script>
-    <script type="text/javascript" src="js/bootstrap-table-export.min.js"></script>
-    <script type="text/javascript" src="js/handlebars.min-v4.7.3.js"></script>
+    <script type="text/javascript" src="js/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="js/jszip.min.v3.10.1.js"></script>
     <script type="text/javascript" src="js/options.js"></script>
-
   </body>
 </html>

@@ -2,12 +2,15 @@ function sendData() {
   if (!window?.WIZ_global_data?.SNlM0e) {
     return;
   }
-  window.postMessage(
+  window
+  .postMessage(
     {
       type: 'WIZ_global_data',
       data: window.WIZ_global_data
     },
-    '*' /* targetOrigin: any */);
+    'https://search.google.com'
+  );
+
 }
 setTimeout(sendData, 10);
 
