@@ -512,6 +512,7 @@ async function downloadZIPs() {
             'Average response time (ms)': item['Average response time (ms)'],
             'Total crawl requests': item['Total crawl requests'],
             'Total download size (Bytes)': item['Total download size (Bytes)'],
+            'Affected pages': item['Affected pages'],
           };
         });
       }

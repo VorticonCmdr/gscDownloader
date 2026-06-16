@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GSC crawl stats downloader",
   "description": "a helper to efficiently download crawl data from GSC",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "homepage_url": "https://valentin.app/gscDownloader.html",
   "permissions": [
     "tabs",
