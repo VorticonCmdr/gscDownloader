@@ -109,3 +109,6 @@ dist
 
 # MacOS
 .DS_Store
+
+# Build output
+extension.zip

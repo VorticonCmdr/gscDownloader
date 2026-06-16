@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <title>GSC crawl stats — Options</title>
+  </head>
+  <body>
+    <div class="container py-4" style="max-width: 860px;">
+
+      <!-- Backup & Restore -->
+      <h5 class="mb-3">Backup &amp; Restore</h5>
+      <div class="row g-2 mb-3">
+        <div class="col-auto">
+          <button class="btn btn-primary" type="button" id="backup">
+            <i class="bi bi-cloud-download"></i> Backup data
+          </button>
+        </div>
+      </div>
+      <div class="bg-secondary-subtle rounded px-4 py-4 text-center mb-5" id="drop-area">
+        <p class="text-muted mb-2">Drop backup ZIP here or select file</p>
+        <input type="file" id="fileInput" name="fileInput" accept="application/zip">
+      </div>
+
+      <hr class="mb-4">
+
+      <!-- Cron Jobs -->
+      <h5 class="mb-3">Scheduled Downloads</h5>
+
+      <form id="cron-form" class="row g-2 mb-4 align-items-end">
+        <div class="col">
+          <label class="form-label text-muted small mb-1">Property</label>
+          <input type="text" id="cron-property" class="form-control"
+            list="cron-property-list"
+            placeholder="https://example.com/ or sc-domain:example.com"
+            autocomplete="off" required>
+          <datalist id="cron-property-list"></datalist>
+        </div>
+        <div class="col-auto">
+          <label class="form-label text-muted small mb-1">Interval</label>
+          <select id="cron-schedule" class="form-select">
+            <option value="60">Hourly</option>
+            <option value="360">Every 6 hours</option>
+            <option value="720">Every 12 hours</option>
+            <option value="1440" selected>Daily</option>
+            <option value="10080">Weekly</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add
+          </button>
+        </div>
+      </form>
+
+      <table class="table table-sm align-middle" id="cron-table">
+        <thead class="table-light">
+          <tr>
+            <th>Property</th>
+            <th>Interval</th>
+            <th>Last download</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="cron-tbody">
+          <tr id="cron-empty">
+            <td colspan="5" class="text-muted text-center py-3">No scheduled jobs</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

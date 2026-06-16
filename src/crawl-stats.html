@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <title>GSC crawl stats export</title>
+  </head>
+
+  <body>
+    <div class="container-fluid mx-2 mb-4">
+
+      <div id="notLoggedInMsg" class="row mt-2" style="display: none">
+        <div class="alert alert-warning mb-0" role="alert">
+          <i class="bi bi-person-x-fill"></i>
+          Not logged in to Google Search Console.
+          <a href="https://search.google.com/search-console" target="_blank" class="alert-link">Sign in</a>
+        </div>
+      </div>
+
+      <div id="errorMsg" class="row mt-2" style="display: none">
+        <div class="alert alert-danger mb-0" role="alert">
+          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+          Download failed. Please reload the page.
+        </div>
+      </div>
+
+      <div id="fetchBar" class="row" style="display: none">
+        <div class="progress">
+          <div id="fetchProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+            role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"
+            style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <div id="chart-and-filter" class="row mt-2 me-2">
+        <div id="chart" style="height: 400px; position: relative;"></div>
+      </div>
+
+      <div class="row me-2">
+        <div id="toolbar">
+          <form class="row row-cols-lg-auto g-3 align-items-center">
+            <div class="col-12">
+              <label for="hostname">filter:</label>
+            </div>
+
+            <div class="col-12">
+              <input type="search" id="hostname" class="form-control" list="hostname-list"
+                placeholder="Search property…" autocomplete="off">
+              <datalist id="hostname-list"></datalist>
+            </div>
+
+            <div class="col-12">
+              <select id="metric" class="form-select">
+                <option value="Total crawl requests">Total crawl requests</option>
+                <option value="Total download size (Bytes)">Total download size (Bytes)</option>
+                <option value="Average response time (ms)">Average response time (ms)</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <select id="category" class="form-select">
+                <option value="response">response</option>
+                <option value="file_type">file type</option>
+                <option value="purpose">purpose</option>
+                <option value="googlebot_type">googlebot type</option>
+                <option value="summary">summary</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+                  download: <span id="downloadBtnTxt"></span>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a id="downloadBtn" class="dropdown-item" href="#">fetch</a></li>
+                  <li><a id="downloadBtnSave" class="dropdown-item" href="#">fetch &amp; backup</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <button id="exportBtn" class="btn btn-outline-secondary" type="button">
+                <i class="bi bi-download"></i> Export CSV
+              </button>
+            </div>
+
+            <div class="col-12 ms-auto">
+              <small id="userEmail" class="text-muted">
+                <i class="bi bi-person-circle"></i> <span id="userEmailText"></span>
+              </small>
+            </div>
+          </form>
+        </div>
+
+        <div id="table"></div>
+      </div>
+
+    </div>
+
+    <script type="module" src="./crawl-stats.js"></script>
+  </body>
+</html>
