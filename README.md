@@ -7,7 +7,8 @@ A Chrome extension for efficiently downloading and visualising Google Search Con
 - **Download crawl stats** across all categories (response codes, file types, purpose, Googlebot type) for any GSC property you have access to
 - **Interactive chart** (Billboard.js) with selectable metrics and categories
 - **Tabular view** (Tabulator) with sorting, pagination, and CSV export
-- **Scheduled downloads** via Chrome alarms — run hourly, every 6/12 hours, daily, or weekly, even when no extension tab is open
+- **Scheduled downloads** via Chrome alarms — run hourly, every 6/12 hours, daily, or weekly at a chosen time of day (and day of week for weekly jobs), even when no extension tab is open
+- **Data freshness indicator** — shows the date of the latest stored data point and how many days ago it was fetched, with a per-property delete button
 - **Backup & restore** — export all stored data as a ZIP, restore from it at any time
 - **Account indicator** — shows the currently signed-in Google account and prompts to sign in when not authenticated
 - **Property autocomplete** — reads all accessible GSC properties from the page and populates a searchable datalist
@@ -81,10 +82,11 @@ src/
 ### Scheduled downloads
 
 1. Open the extension **Options** page (`chrome://extensions` → Details → Extension options)
-2. Under **Scheduled Downloads**, enter a property (e.g. `https://example.com/` or `sc-domain:example.com`) and choose an interval
-3. Click **Add** — Chrome will wake the service worker at the chosen interval and run a full download in the background
-4. Use the **⚡ Run now** button to trigger a job immediately for testing
-5. Jobs survive browser restarts and extension updates
+2. Under **Scheduled Downloads**, enter a property (e.g. `https://example.com/` or `sc-domain:example.com`)
+3. Choose an interval, a time of day (e.g. `03:00`), and — for weekly jobs — the day of the week
+4. Click **Add** — Chrome will wake the service worker at the next occurrence of the chosen time and repeat at the selected interval
+5. Use the **⚡ Run now** button to trigger a job immediately for testing
+6. Jobs survive browser restarts and extension updates; the **Next run** column shows the upcoming scheduled time
 
 ### Backup & restore
 
