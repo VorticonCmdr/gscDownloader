@@ -29,6 +29,8 @@ function splitChunksPlugin() {
         config.build.rollupOptions.output.manualChunks = {
           tabulator: ['tabulator-tables'],
           billboard: ['billboard.js'],
+          vendor: ['jszip', 'papaparse'],
+          bootstrap: ['bootstrap', '@popperjs/core'],
         };
       }
     },

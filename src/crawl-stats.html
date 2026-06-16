@@ -50,6 +50,16 @@
             </div>
 
             <div class="col-12">
+              <button id="deleteDataBtn" class="btn btn-outline-danger btn-sm" type="button" title="Delete stored data for this property" style="display:none">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+
+            <div class="col-12">
+              <small id="dataFreshness" class="text-muted"></small>
+            </div>
+
+            <div class="col-12">
               <select id="metric" class="form-select">
                 <option value="Total crawl requests">Total crawl requests</option>
                 <option value="Total download size (Bytes)">Total download size (Bytes)</option>
@@ -69,7 +79,7 @@
 
             <div class="col-12">
               <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle" type="button"
+                <button id="downloadToggleBtn" class="btn btn-primary dropdown-toggle" type="button"
                   data-bs-toggle="dropdown" aria-expanded="false">
                   download: <span id="downloadBtnTxt"></span>
                 </button>

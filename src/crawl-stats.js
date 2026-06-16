@@ -10,6 +10,7 @@ import Papa from 'papaparse';
 
 let chromeDownload = false;
 let dlProgress = 0;
+let downloading = false;
 let chart;
 let table;
 
@@ -79,6 +80,9 @@ const elUserEmailText = document.getElementById('userEmailText');
 const elFetchBar = document.getElementById('fetchBar');
 const elFetchProgress = document.getElementById('fetchProgress');
 const elExportBtn = document.getElementById('exportBtn');
+const elDownloadToggleBtn = document.getElementById('downloadToggleBtn');
+const elDeleteDataBtn = document.getElementById('deleteDataBtn');
+const elDataFreshness = document.getElementById('dataFreshness');
 
 // Initialize Bootstrap dropdowns
 document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => new Dropdown(el));
@@ -109,6 +113,19 @@ elDownloadBtn.addEventListener('click', downloadZIPs);
 elDownloadBtnSave.addEventListener('click', function() {
   chromeDownload = true;
   downloadZIPs();
+});
+
+elDeleteDataBtn.addEventListener('click', () => {
+  const hostname = filters.hostname;
+  if (!hostname || !confirm(`Delete all stored data for "${hostname}"?`)) return;
+  chrome.storage.local.remove(hostname, () => {
+    delete totalData[hostname];
+    gscData = {};
+    tableData = [];
+    table.replaceData([]);
+    if (chart) { chart.destroy(); chart = null; }
+    updateFreshness();
+  });
 });
 
 // --- State ---
@@ -240,6 +257,7 @@ async function init() {
       table.replaceData(tableData).then(() => {
         applyFilters();
         generateChart();
+        updateFreshness();
       });
     }
 
@@ -261,11 +279,25 @@ elHostname.addEventListener('change', function () {
     table.replaceData(tableData).then(() => {
       applyFilters();
       generateChart();
+      updateFreshness();
     });
   });
 });
 
 // --- Helpers ---
+function updateFreshness() {
+  const dates = Object.keys(gscData);
+  if (dates.length === 0) {
+    elDataFreshness.textContent = '';
+    elDeleteDataBtn.style.display = 'none';
+    return;
+  }
+  const latest = dates.reduce((a, b) => (a > b ? a : b));
+  const daysAgo = Math.floor((Date.now() - new Date(latest).getTime()) / 86400000);
+  elDataFreshness.textContent = `Latest data: ${latest} (${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`})`;
+  elDeleteDataBtn.style.display = '';
+}
+
 function applyFilters() {
   table.setFilter(
     Object.entries(filters).map(([field, value]) => ({ field, type: '=', value }))
@@ -379,12 +411,18 @@ function generateURLs() {
 }
 
 async function downloadZIPs() {
+  if (downloading) return;
+  downloading = true;
+  elDownloadToggleBtn.disabled = true;
+
   dlSettings = { resource_id: background.settings.resource_id || elHostname.value };
   if (background.settings.hostname) dlSettings['hostname'] = background.settings.hostname;
   generateURLs();
 
   if (!background.settings.QrtxK) {
     elErrorMsg.style.display = 'block';
+    downloading = false;
+    elDownloadToggleBtn.disabled = false;
     return;
   }
 
@@ -488,6 +526,8 @@ async function downloadZIPs() {
   elFetchBar.style.display = 'none';
   document.title = 'GSC crawl stats downloader';
   chromeDownload = false;
+  downloading = false;
+  elDownloadToggleBtn.disabled = false;
   gscData = dlGscData;
   selection = [];
 
@@ -508,5 +548,6 @@ async function downloadZIPs() {
   table.replaceData(tableData).then(() => {
     applyFilters();
     generateChart();
+    updateFreshness();
   });
 }
