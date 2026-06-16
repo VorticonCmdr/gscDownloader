@@ -19,6 +19,22 @@ function copyIconsPlugin() {
   };
 }
 
+function splitChunksPlugin() {
+  return {
+    name: 'split-chunks',
+    configResolved(config) {
+      const input = config.build?.rollupOptions?.input;
+      const isMultiEntry = input && typeof input === 'object' && Object.keys(input).length > 1;
+      if (isMultiEntry && config.build.rollupOptions.output) {
+        config.build.rollupOptions.output.manualChunks = {
+          tabulator: ['tabulator-tables'],
+          billboard: ['billboard.js'],
+        };
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: 'src',
   plugins: [
@@ -26,6 +42,7 @@ export default defineConfig({
       additionalInputs: ['crawl-stats.html'],
     }),
     copyIconsPlugin(),
+    splitChunksPlugin(),
   ],
   base: '',
   build: {

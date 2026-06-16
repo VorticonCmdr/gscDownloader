@@ -9,7 +9,6 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 
 let chromeDownload = false;
-let dlQueue = 0;
 let dlProgress = 0;
 let chart;
 let table;
@@ -379,70 +378,97 @@ function generateURLs() {
   );
 }
 
-function downloadZIPs() {
+async function downloadZIPs() {
   dlSettings = { resource_id: background.settings.resource_id || elHostname.value };
   if (background.settings.hostname) dlSettings['hostname'] = background.settings.hostname;
   generateURLs();
-  dlQueue = selection.length + 1;
-  dlProgress = selection.length;
-  elFetchBar.style.display = 'block';
-  downloadSummary();
-}
 
-function calcDownloadProgress() {
-  dlQueue--;
-  document.title = `${dlQueue} to download`;
-  elFetchProgress.textContent = `${dlQueue} to download`;
-  elFetchProgress.style.width = `${Math.floor((1 - selection.length / dlProgress) * 100)}%`;
-}
-
-let dlGscData = {};
-
-function downloadSummary() {
   if (!background.settings.QrtxK) {
     elErrorMsg.style.display = 'block';
     return;
   }
-  const dlURL = new URL('https://search.google.com/u/' + background.settings.QrtxK + '/search-console/export/crawl-stats');
-  const params = {
+
+  dlProgress = selection.length;
+  let completed = 0;
+  elFetchBar.style.display = 'block';
+
+  function updateProgress() {
+    completed++;
+    const remaining = dlProgress - completed + 1;
+    document.title = `${remaining} to download`;
+    elFetchProgress.textContent = `${remaining} to download`;
+    elFetchProgress.style.width = `${Math.floor((completed / (dlProgress + 1)) * 100)}%`;
+  }
+
+  const dlGscData = {};
+
+  async function fetchBlob(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const header = resp.headers.get('Content-Disposition');
+    const filename = JSON.parse(header.split(';')[1].split('=')[1]);
+    const blob = await resp.blob();
+    if (chromeDownload) {
+      chrome.downloads.download({
+        saveAs: false,
+        conflictAction: 'uniquify',
+        url: window.URL.createObjectURL(blob),
+        filename: 'gscData/' + filename,
+      }, () => {
+        if (chrome.runtime.lastError) console.warn('Download error:', chrome.runtime.lastError.message);
+      });
+    }
+    return blob;
+  }
+
+  // Summary file
+  const summaryURL = new URL('https://search.google.com/u/' + background.settings.QrtxK + '/search-console/export/crawl-stats');
+  Object.entries({
     hl: 'en',
     resource_id: dlSettings['resource_id'],
     request_type: '3',
     at: background.settings.SNlM0e,
-  };
-  if (dlSettings['hostname']) params['hostname'] = dlSettings['hostname'];
-  Object.entries(params).forEach(([k, v]) => dlURL.searchParams.set(k, v));
+    ...(dlSettings['hostname'] ? { hostname: dlSettings['hostname'] } : {}),
+  }).forEach(([k, v]) => summaryURL.searchParams.set(k, v));
 
-  let filename = 'temp';
-  fetch(dlURL.href)
-    .then((response) => {
-      if (!response.ok) throw new Error('Network response was not OK');
-      const header = response.headers.get('Content-Disposition');
-      filename = JSON.parse(header.split(';')[1].split('=')[1]);
-      return response.blob();
-    })
-    .then((blob) => {
-      calcDownloadProgress();
-      if (chromeDownload) {
-        chrome.downloads.download({
-          saveAs: false,
-          conflictAction: 'uniquify',
-          url: window.URL.createObjectURL(blob),
-          filename: 'gscData/' + filename,
-        }, (id) => {
-          if (chrome.runtime.lastError) console.warn('Download error: ' + chrome.runtime.lastError.message);
-        });
-      }
-      return blob;
-    })
-    .then(JSZip.loadAsync)
-    .then((zip) => {
-      zip.files['Summary crawl stats chart.csv'].async('string').then((fileData) => {
-        Papa.parse(fileData, { dynamicTyping: true, header: true }).data.forEach((item) => {
+  try {
+    const blob = await fetchBlob(summaryURL.href);
+    const zip = await JSZip.loadAsync(blob);
+    const csv = await zip.files['Summary crawl stats chart.csv'].async('string');
+    Papa.parse(csv, { dynamicTyping: true, header: true }).data.forEach((item) => {
+      if (!item['Date']) return;
+      if (!dlGscData[item['Date']]) dlGscData[item['Date']] = {};
+      dlGscData[item['Date']]['summary'] = {
+        category: 'summary',
+        type: 'total',
+        resource_id: dlSettings['resource_id'],
+        hostname: dlSettings['hostname'] || dlSettings['resource_id'],
+        'Average response time (ms)': item['Average response time (ms)'],
+        'Total crawl requests': item['Total crawl requests'],
+        'Total download size (Bytes)': item['Total download size (Bytes)'],
+      };
+    });
+  } catch (err) {
+    console.error('Summary download failed:', err);
+    elErrorMsg.style.display = 'block';
+  }
+  updateProgress();
+
+  // Drilldown files
+  for (const row of selection) {
+    try {
+      const blob = await fetchBlob(row.url);
+      const zip = await JSZip.loadAsync(blob);
+      const metaCsv = await zip.files['Metadata.csv'].async('string');
+      const dataType = Papa.parse(metaCsv, { dynamicTyping: true, header: true }).data[0]?.['Value'];
+      if (dataType) {
+        const chartCsv = await zip.files['Chart.csv'].async('string');
+        Papa.parse(chartCsv, { dynamicTyping: true, header: true }).data.forEach((item) => {
+          if (!item['Date']) return;
           if (!dlGscData[item['Date']]) dlGscData[item['Date']] = {};
-          dlGscData[item['Date']]['summary'] = {
-            category: 'summary',
-            type: 'total',
+          dlGscData[item['Date']][dataType] = {
+            category: row.category,
+            type: dataType,
             resource_id: dlSettings['resource_id'],
             hostname: dlSettings['hostname'] || dlSettings['resource_id'],
             'Average response time (ms)': item['Average response time (ms)'],
@@ -450,88 +476,37 @@ function downloadSummary() {
             'Total download size (Bytes)': item['Total download size (Bytes)'],
           };
         });
-        downloadStats();
-      });
-    })
-    .catch((error) => console.error('Error:', error));
-}
-
-function downloadStats() {
-  const row = selection.shift();
-
-  if (!row) {
-    elFetchBar.style.display = 'none';
-    document.title = 'GSC crawl stats downloader';
-    chromeDownload = false;
-    gscData = dlGscData;
-
-    const hostname = dlSettings.hostname || dlSettings['resource_id'];
-    const save = { [hostname]: mergeGSCdata(dlGscData, hostname) };
-    chrome.storage.local.set(save);
-
-    filters.hostname = hostname;
-    elHostname.value = hostname;
-    const datalist = document.getElementById('hostname-list');
-    const listed = new Set([...datalist.options].map((o) => o.value));
-    if (!listed.has(hostname)) {
-      const opt = document.createElement('option');
-      opt.value = hostname;
-      datalist.appendChild(opt);
+      }
+    } catch (err) {
+      console.warn('Skipping', row.url, err.message);
     }
-
-    tableData = gscDataFlat();
-    table.replaceData(tableData).then(() => {
-      applyFilters();
-      generateChart();
-    });
-    return;
+    updateProgress();
+    await new Promise((r) => setTimeout(r, 200));
   }
 
-  let filename = 'temp';
-  fetch(row.url)
-    .then((response) => {
-      if (!response.ok) throw new Error('Network response was not OK');
-      const header = response.headers.get('Content-Disposition');
-      filename = JSON.parse(header.split(';')[1].split('=')[1]);
-      return response.blob();
-    })
-    .then((blob) => {
-      calcDownloadProgress();
-      if (chromeDownload) {
-        chrome.downloads.download({
-          saveAs: false,
-          conflictAction: 'uniquify',
-          url: window.URL.createObjectURL(blob),
-          filename: 'gscData/' + filename,
-        }, (id) => {
-          if (chrome.runtime.lastError) console.warn('Download error: ' + chrome.runtime.lastError.message);
-        });
-      }
-      return blob;
-    })
-    .then(JSZip.loadAsync)
-    .then((zip) => {
-      zip.files['Metadata.csv'].async('string').then((metaData) => {
-        const dataType = Papa.parse(metaData, { dynamicTyping: true, header: true }).data[0]['Value'];
-        zip.files['Chart.csv'].async('string').then((chartData) => {
-          Papa.parse(chartData, { dynamicTyping: true, header: true }).data.forEach((item) => {
-            if (!dlGscData[item['Date']]) dlGscData[item['Date']] = {};
-            dlGscData[item['Date']][dataType] = {
-              category: row.category,
-              type: dataType,
-              resource_id: dlSettings['resource_id'],
-              hostname: dlSettings['hostname'] || dlSettings['resource_id'],
-              'Average response time (ms)': item['Average response time (ms)'],
-              'Total crawl requests': item['Total crawl requests'],
-              'Total download size (Bytes)': item['Total download size (Bytes)'],
-            };
-          });
-          setTimeout(downloadStats, 500);
-        });
-      });
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-      setTimeout(downloadStats, 500);
-    });
+  // Finalise
+  elFetchBar.style.display = 'none';
+  document.title = 'GSC crawl stats downloader';
+  chromeDownload = false;
+  gscData = dlGscData;
+  selection = [];
+
+  const hostname = dlSettings.hostname || dlSettings['resource_id'];
+  chrome.storage.local.set({ [hostname]: mergeGSCdata(dlGscData, hostname) });
+
+  filters.hostname = hostname;
+  elHostname.value = hostname;
+  const datalist = document.getElementById('hostname-list');
+  const listed = new Set([...datalist.options].map((o) => o.value));
+  if (!listed.has(hostname)) {
+    const opt = document.createElement('option');
+    opt.value = hostname;
+    datalist.appendChild(opt);
+  }
+
+  tableData = gscDataFlat();
+  table.replaceData(tableData).then(() => {
+    applyFilters();
+    generateChart();
+  });
 }
