@@ -53,6 +53,34 @@ const SCHEDULES = {
   '10080': 'Weekly',
 };
 
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function nextFiringTime(periodInMinutes, timeStr, dayOfWeek) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setSeconds(0, 0);
+  candidate.setHours(h, m);
+
+  if (periodInMinutes === 10080) {
+    const diff = (dayOfWeek - candidate.getDay() + 7) % 7;
+    candidate.setDate(candidate.getDate() + diff);
+    if (candidate <= now) candidate.setDate(candidate.getDate() + 7);
+  } else {
+    if (candidate <= now) {
+      const periodsNeeded = Math.ceil((now - candidate) / (periodInMinutes * 60000));
+      candidate.setTime(candidate.getTime() + periodsNeeded * periodInMinutes * 60000);
+    }
+  }
+  return candidate.getTime();
+}
+
+function scheduleLabel(job) {
+  const base = SCHEDULES[String(job.periodInMinutes)] || `Every ${job.periodInMinutes} min.`;
+  const dayPart = job.periodInMinutes === 10080 ? ` (${DAYS[job.dayOfWeek]})` : '';
+  return `${base}${dayPart} at ${job.time}`;
+}
+
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -66,20 +94,24 @@ async function saveJobs(cronJobs) {
   await chrome.storage.local.set({ cronJobs });
 }
 
-async function addJob(property, periodInMinutes) {
+async function addJob(property, periodInMinutes, time, dayOfWeek) {
   const cronJobs = await loadJobs();
   const id = uid();
   cronJobs[id] = {
     id,
     property,
     periodInMinutes,
-    scheduleLabel: SCHEDULES[String(periodInMinutes)] || `Every ${periodInMinutes} min.`,
+    time,
+    dayOfWeek,
     enabled: true,
     lastRun: null,
     createdAt: new Date().toISOString(),
   };
   await saveJobs(cronJobs);
-  chrome.alarms.create('gsc-cron-' + id, { periodInMinutes });
+  chrome.alarms.create('gsc-cron-' + id, {
+    when: nextFiringTime(periodInMinutes, time, dayOfWeek),
+    periodInMinutes,
+  });
   return cronJobs;
 }
 
@@ -97,35 +129,43 @@ async function toggleJob(id) {
   job.enabled = !job.enabled;
   await saveJobs(cronJobs);
   if (job.enabled) {
-    chrome.alarms.create('gsc-cron-' + id, { periodInMinutes: job.periodInMinutes });
+    chrome.alarms.create('gsc-cron-' + id, {
+      when: nextFiringTime(job.periodInMinutes, job.time || '03:00', job.dayOfWeek ?? 1),
+      periodInMinutes: job.periodInMinutes,
+    });
   } else {
     chrome.alarms.clear('gsc-cron-' + id);
   }
   return cronJobs;
 }
 
-function renderJobs(cronJobs) {
+async function renderJobs(cronJobs) {
   const tbody = document.getElementById('cron-tbody');
   const emptyRow = document.getElementById('cron-empty');
   const jobs = Object.values(cronJobs);
 
-  // Remove all job rows (keep the empty-placeholder row)
   [...tbody.querySelectorAll('tr[data-job-id]')].forEach((r) => r.remove());
   emptyRow.style.display = jobs.length ? 'none' : '';
 
-  jobs.forEach((job) => {
+  for (const job of jobs) {
     const lastRun = job.lastRun
       ? new Date(job.lastRun).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
       : '—';
 
+    const alarm = await chrome.alarms.get('gsc-cron-' + job.id);
+    const nextRun = alarm
+      ? new Date(alarm.scheduledTime).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+      : job.enabled ? '—' : '—';
+
     const tr = document.createElement('tr');
     tr.dataset.jobId = job.id;
     tr.innerHTML = `
-      <td class="text-truncate" style="max-width:260px" title="${job.property}">
+      <td class="text-truncate" style="max-width:220px" title="${job.property}">
         <code class="small">${job.property}</code>
       </td>
-      <td class="text-nowrap">${job.scheduleLabel}</td>
+      <td class="text-nowrap">${scheduleLabel(job)}</td>
       <td class="text-nowrap">${lastRun}</td>
+      <td class="text-nowrap">${nextRun}</td>
       <td>
         <span class="badge rounded-pill bg-${job.enabled ? 'success' : 'secondary'}">
           ${job.enabled ? 'Active' : 'Paused'}
@@ -166,7 +206,7 @@ function renderJobs(cronJobs) {
     });
 
     tbody.appendChild(tr);
-  });
+  }
 }
 
 // Populate property datalist from existing storage keys
@@ -182,13 +222,20 @@ async function populatePropertyList() {
     });
 }
 
+// Show/hide day selector for weekly
+document.getElementById('cron-schedule').addEventListener('change', function () {
+  document.getElementById('cron-day-col').style.display = this.value === '10080' ? '' : 'none';
+});
+
 // Form submission
 document.getElementById('cron-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const property = document.getElementById('cron-property').value.trim();
   const periodInMinutes = Number(document.getElementById('cron-schedule').value);
+  const time = document.getElementById('cron-time').value || '03:00';
+  const dayOfWeek = Number(document.getElementById('cron-day').value);
   if (!property) return;
-  renderJobs(await addJob(property, periodInMinutes));
+  renderJobs(await addJob(property, periodInMinutes, time, dayOfWeek));
   document.getElementById('cron-property').value = '';
 });
 

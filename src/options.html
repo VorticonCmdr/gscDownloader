@@ -46,6 +46,22 @@
             <option value="10080">Weekly</option>
           </select>
         </div>
+        <div class="col-auto" id="cron-day-col" style="display:none">
+          <label class="form-label text-muted small mb-1">Day</label>
+          <select id="cron-day" class="form-select">
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <label class="form-label text-muted small mb-1">At</label>
+          <input type="time" id="cron-time" class="form-control" value="03:00" required>
+        </div>
         <div class="col-auto">
           <button type="submit" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Add
@@ -59,13 +75,14 @@
             <th>Property</th>
             <th>Interval</th>
             <th>Last download</th>
+            <th>Next run</th>
             <th>Status</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody id="cron-tbody">
           <tr id="cron-empty">
-            <td colspan="5" class="text-muted text-center py-3">No scheduled jobs</td>
+            <td colspan="6" class="text-muted text-center py-3">No scheduled jobs</td>
           </tr>
         </tbody>
       </table>

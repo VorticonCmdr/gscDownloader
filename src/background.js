@@ -10,13 +10,35 @@ chrome.action.onClicked.addListener(() => {
 // Re-create alarms that may have been lost after extension update/reinstall
 chrome.runtime.onInstalled.addListener(restoreAlarms);
 
+function nextFiringTime(periodInMinutes, timeStr, dayOfWeek) {
+  const [h, m] = (timeStr || '03:00').split(':').map(Number);
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setSeconds(0, 0);
+  candidate.setHours(h, m);
+  if (periodInMinutes === 10080) {
+    const diff = ((dayOfWeek ?? 1) - candidate.getDay() + 7) % 7;
+    candidate.setDate(candidate.getDate() + diff);
+    if (candidate <= now) candidate.setDate(candidate.getDate() + 7);
+  } else {
+    if (candidate <= now) {
+      const n = Math.ceil((now - candidate) / (periodInMinutes * 60000));
+      candidate.setTime(candidate.getTime() + n * periodInMinutes * 60000);
+    }
+  }
+  return candidate.getTime();
+}
+
 async function restoreAlarms() {
   const { cronJobs = {} } = await chrome.storage.local.get('cronJobs');
   for (const job of Object.values(cronJobs)) {
     if (!job.enabled) continue;
     const existing = await chrome.alarms.get('gsc-cron-' + job.id);
     if (!existing) {
-      chrome.alarms.create('gsc-cron-' + job.id, { periodInMinutes: job.periodInMinutes });
+      chrome.alarms.create('gsc-cron-' + job.id, {
+        when: nextFiringTime(job.periodInMinutes, job.time, job.dayOfWeek),
+        periodInMinutes: job.periodInMinutes,
+      });
     }
   }
 }
