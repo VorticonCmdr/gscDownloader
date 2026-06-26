@@ -110,4 +110,4 @@ The Options page lists every property that has data stored locally:
 
 ## Homepage
 
-[https://valentin.app/gscDownloader.html](https://valentin.app/gscDownloader.html)
+[https://vorticoncmdr.github.io/gscDownloader/](https://vorticoncmdr.github.io/gscDownloader/)
