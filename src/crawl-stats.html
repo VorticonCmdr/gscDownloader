@@ -7,9 +7,18 @@
   </head>
 
   <body>
-    <div class="container-fluid mx-2 mb-4">
+    <div class="container-fluid p-0">
 
-      <div id="notLoggedInMsg" class="row mt-2" style="display: none">
+      <!-- Header bar -->
+      <div class="d-flex align-items-center px-3 py-2 mb-2 border-bottom bg-white">
+        <span class="fw-semibold text-secondary me-auto" style="font-size:0.85rem; letter-spacing:.04em;">GSC CRAWL STATS</span>
+        <small id="userEmail" class="text-muted">
+          <i class="bi bi-person-circle"></i> <span id="userEmailText"></span>
+        </small>
+      </div>
+
+      <!-- Alerts -->
+      <div id="notLoggedInMsg" class="px-3 mb-2" style="display: none">
         <div class="alert alert-warning mb-0" role="alert">
           <i class="bi bi-person-x-fill"></i>
           Not logged in to Google Search Console.
@@ -17,96 +26,76 @@
         </div>
       </div>
 
-      <div id="errorMsg" class="row mt-2" style="display: none">
+      <div id="errorMsg" class="px-3 mb-2" style="display: none">
         <div class="alert alert-danger mb-0" role="alert">
           <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
           Download failed. Please reload the page.
         </div>
       </div>
 
-      <div id="fetchBar" class="row" style="display: none">
-        <div class="progress">
-          <div id="fetchProgress" class="progress-bar progress-bar-striped progress-bar-animated"
-            role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"
-            style="width: 100%;"></div>
-        </div>
+      <!-- Row A: Property bar -->
+      <div class="d-flex align-items-center gap-2 px-3 mb-2">
+        <input type="search" id="hostname" class="form-control form-control-sm" list="hostname-list"
+          placeholder="Property…" autocomplete="off" style="max-width:280px;">
+        <datalist id="hostname-list"></datalist>
+<small id="dataFreshness" class="text-muted text-nowrap"></small>
       </div>
 
-      <div id="chart-and-filter" class="row mt-2 me-2">
-        <div id="chart" style="height: 400px; position: relative;"></div>
+      <!-- Row B: Chart controls + actions -->
+      <div class="d-flex align-items-center gap-2 px-3 mb-3 flex-wrap">
+        <select id="metric" class="form-select form-select-sm" style="width:auto;">
+          <option value="Total crawl requests">Total crawl requests</option>
+          <option value="Total download size (Bytes)">Total download size (Bytes)</option>
+          <option value="Average response time (ms)">Average response time (ms)</option>
+        </select>
+        <select id="category" class="form-select form-select-sm" style="width:auto;">
+          <option value="response">response</option>
+          <option value="file_type">file type</option>
+          <option value="purpose">purpose</option>
+          <option value="googlebot_type">googlebot type</option>
+          <option value="summary">summary</option>
+        </select>
+        <div class="dropdown ms-auto">
+          <button id="downloadToggleBtn" class="btn btn-primary btn-sm dropdown-toggle" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-cloud-download"></i> <span id="downloadBtnTxt"></span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a id="downloadBtn" class="dropdown-item" href="#">fetch</a></li>
+            <li><a id="downloadBtnSave" class="dropdown-item" href="#">fetch &amp; backup</a></li>
+          </ul>
+        </div>
+        <button id="exportBtn" class="btn btn-outline-secondary btn-sm" type="button">
+          <i class="bi bi-download"></i> CSV
+        </button>
       </div>
 
-      <div class="row me-2">
-        <div id="toolbar">
-          <form class="row row-cols-lg-auto g-3 align-items-center">
-            <div class="col-12">
-              <label for="hostname">filter:</label>
-            </div>
-
-            <div class="col-12">
-              <input type="search" id="hostname" class="form-control" list="hostname-list"
-                placeholder="Search property…" autocomplete="off">
-              <datalist id="hostname-list"></datalist>
-            </div>
-
-            <div class="col-12">
-              <button id="deleteDataBtn" class="btn btn-outline-danger btn-sm" type="button" title="Delete stored data for this property" style="display:none">
-                <i class="bi bi-trash"></i>
-              </button>
-            </div>
-
-            <div class="col-12">
-              <small id="dataFreshness" class="text-muted"></small>
-            </div>
-
-            <div class="col-12">
-              <select id="metric" class="form-select">
-                <option value="Total crawl requests">Total crawl requests</option>
-                <option value="Total download size (Bytes)">Total download size (Bytes)</option>
-                <option value="Average response time (ms)">Average response time (ms)</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <select id="category" class="form-select">
-                <option value="response">response</option>
-                <option value="file_type">file type</option>
-                <option value="purpose">purpose</option>
-                <option value="googlebot_type">googlebot type</option>
-                <option value="summary">summary</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <div class="dropdown">
-                <button id="downloadToggleBtn" class="btn btn-primary dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-                  download: <span id="downloadBtnTxt"></span>
-                </button>
-                <ul class="dropdown-menu">
-                  <li><a id="downloadBtn" class="dropdown-item" href="#">fetch</a></li>
-                  <li><a id="downloadBtnSave" class="dropdown-item" href="#">fetch &amp; backup</a></li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="col-12">
-              <button id="exportBtn" class="btn btn-outline-secondary" type="button">
-                <i class="bi bi-download"></i> Export CSV
-              </button>
-            </div>
-
-            <div class="col-12 ms-auto">
-              <small id="userEmail" class="text-muted">
-                <i class="bi bi-person-circle"></i> <span id="userEmailText"></span>
-              </small>
-            </div>
-          </form>
+      <!-- Chart card -->
+      <div class="card shadow-sm mx-3 mb-3">
+        <div class="card-header d-flex align-items-center py-1 px-3">
+          <small class="text-muted text-uppercase me-auto" style="font-size:0.7rem; letter-spacing:.04em;">Chart</small>
+          <button id="invertSelectionBtn" class="btn btn-outline-secondary btn-sm" type="button" style="display:none;">
+            <i class="bi bi-arrow-left-right"></i> Invert
+          </button>
         </div>
+        <div id="chart" style="height:380px; position:relative;"></div>
+      </div>
 
+      <!-- Table card -->
+      <div class="card shadow-sm mx-3 mb-5">
         <div id="table"></div>
       </div>
 
+    </div>
+
+    <!-- Fixed progress bar at bottom -->
+    <div id="fetchBar" class="position-fixed top-0 start-0 end-0" style="display:none; z-index:1050;">
+      <div id="fetchProgressLabel" class="bg-dark bg-opacity-75 text-white text-center py-1"
+        style="font-size:0.75rem;"></div>
+      <div class="progress rounded-0" style="height:4px;">
+        <div id="fetchProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+          role="progressbar" style="width:0%;"></div>
+      </div>
     </div>
 
     <script type="module" src="./crawl-stats.js"></script>

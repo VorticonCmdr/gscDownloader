@@ -49,21 +49,29 @@ const colors = {
 
 let chartConfig = { metric: 'Total crawl requests' };
 
+function shortLabel(url) {
+  try { return new URL(url).hostname || url; } catch { return url; }
+}
+
 function numberToLocaleString(cell) {
   const value = cell.getValue();
   if (typeof value === 'number') return value.toLocaleString();
   return '-';
 }
 
+function headerFilterGte(headerValue, rowValue) {
+  return headerValue === '' || headerValue === null || rowValue >= Number(headerValue);
+}
+
 const columns = [
-  { title: 'Date', field: 'Date', sorter: 'string' },
+  { title: 'Date', field: 'Date', sorter: 'string', headerFilter: 'input' },
   { title: 'resource_id', field: 'resource_id', sorter: 'string', visible: false },
-  { title: 'hostname', field: 'hostname', sorter: 'string' },
+  { title: 'hostname', field: 'hostname', sorter: 'string', headerFilter: 'input' },
   { title: 'category', field: 'category', sorter: 'string', visible: false },
-  { title: 'type', field: 'type', sorter: 'string' },
-  { title: 'Total crawl requests', field: 'Total crawl requests', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right' },
-  { title: 'Total download size (Bytes)', field: 'Total download size (Bytes)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right' },
-  { title: 'Average response time (ms)', field: 'Average response time (ms)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right' },
+  { title: 'type', field: 'type', sorter: 'string', headerFilter: 'input' },
+  { title: 'Total crawl requests', field: 'Total crawl requests', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
+  { title: 'Total download size (Bytes)', field: 'Total download size (Bytes)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
+  { title: 'Average response time (ms)', field: 'Average response time (ms)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
   { title: 'Affected pages', field: 'Affected pages', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', visible: false },
 ];
 
@@ -79,10 +87,11 @@ const elNotLoggedInMsg = document.getElementById('notLoggedInMsg');
 const elUserEmailText = document.getElementById('userEmailText');
 const elFetchBar = document.getElementById('fetchBar');
 const elFetchProgress = document.getElementById('fetchProgress');
+const elFetchProgressLabel = document.getElementById('fetchProgressLabel');
 const elExportBtn = document.getElementById('exportBtn');
 const elDownloadToggleBtn = document.getElementById('downloadToggleBtn');
-const elDeleteDataBtn = document.getElementById('deleteDataBtn');
 const elDataFreshness = document.getElementById('dataFreshness');
+const elInvertSelectionBtn = document.getElementById('invertSelectionBtn');
 
 // Initialize Bootstrap dropdowns
 document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => new Dropdown(el));
@@ -104,6 +113,15 @@ elMetric.addEventListener('change', function() {
   generateChart();
 });
 
+elInvertSelectionBtn.addEventListener('click', () => {
+  if (!chart) return;
+  const all = chart.data().map(d => d.id);
+  const shown = chart.data.shown().map(d => d.id);
+  const hidden = all.filter(id => !shown.includes(id));
+  chart.hide(shown);
+  chart.show(hidden);
+});
+
 elExportBtn.addEventListener('click', () => {
   const slug = (filters.hostname || 'export').replace(/[^a-zA-Z0-9._-]/g, '_');
   table.download('csv', `crawl-stats_${slug}.csv`, {}, 'all');
@@ -113,19 +131,6 @@ elDownloadBtn.addEventListener('click', downloadZIPs);
 elDownloadBtnSave.addEventListener('click', function() {
   chromeDownload = true;
   downloadZIPs();
-});
-
-elDeleteDataBtn.addEventListener('click', () => {
-  const hostname = filters.hostname;
-  if (!hostname || !confirm(`Delete all stored data for "${hostname}"?`)) return;
-  chrome.storage.local.remove(hostname, () => {
-    delete totalData[hostname];
-    gscData = {};
-    tableData = [];
-    table.replaceData([]);
-    if (chart) { chart.destroy(); chart = null; }
-    updateFreshness();
-  });
 });
 
 // --- State ---
@@ -195,12 +200,21 @@ async function fetchWIZdata() {
 
 // --- Initialization ---
 async function init() {
-  // Get resource_id / hostname from active GSC tab URL
-  const tabs = await chrome.tabs.query({ url: 'https://search.google.com/*' });
-  if (tabs && tabs.length > 0) {
-    const tabURL = new URL(tabs[0].url);
-    background.settings['resource_id'] = tabURL.searchParams.get('resource_id');
-    background.settings['hostname'] = tabURL.searchParams.get('hostname');
+  // URL param from options page "View" link takes priority
+  const urlParam = new URLSearchParams(location.search).get('property');
+  if (urlParam) {
+    background.settings.resource_id = urlParam;
+    delete background.settings.hostname;
+  }
+
+  // Get resource_id / hostname from active GSC tab URL (skip when opened via ?property=)
+  if (!urlParam) {
+    const tabs = await chrome.tabs.query({ url: 'https://search.google.com/*' });
+    if (tabs && tabs.length > 0) {
+      const tabURL = new URL(tabs[0].url);
+      background.settings['resource_id'] = tabURL.searchParams.get('resource_id');
+      background.settings['hostname'] = tabURL.searchParams.get('hostname');
+    }
   }
 
   // Fetch WIZ tokens + property list from GSC HTML
@@ -219,7 +233,7 @@ async function init() {
   }
 
   const property = background.settings.hostname || background.settings.resource_id;
-  elDownloadBtnTxt.textContent = property || '';
+  elDownloadBtnTxt.textContent = shortLabel(property || '');
 
   // Populate datalist with all accessible GSC properties
   const datalist = document.getElementById('hostname-list');
@@ -273,6 +287,10 @@ elHostname.addEventListener('change', function () {
   const hostname = this.value.trim();
   if (!hostname) return;
   filters.hostname = hostname;
+  elDownloadBtnTxt.textContent = shortLabel(hostname);
+  background.settings.resource_id = hostname;
+  delete background.settings.hostname;
+  selection = [];
   chrome.storage.local.get(hostname, (result) => {
     gscData = result[hostname] || {};
     tableData = gscDataFlat();
@@ -289,13 +307,11 @@ function updateFreshness() {
   const dates = Object.keys(gscData);
   if (dates.length === 0) {
     elDataFreshness.textContent = '';
-    elDeleteDataBtn.style.display = 'none';
     return;
   }
   const latest = dates.reduce((a, b) => (a > b ? a : b));
   const daysAgo = Math.floor((Date.now() - new Date(latest).getTime()) / 86400000);
   elDataFreshness.textContent = `Latest data: ${latest} (${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`})`;
-  elDeleteDataBtn.style.display = '';
 }
 
 function applyFilters() {
@@ -352,6 +368,7 @@ function generateChart() {
       colors,
       type: line(),
     },
+    transition: { duration: 0 },
     padding: { left: 50, right: 20 },
     axis: {
       x: {
@@ -365,6 +382,7 @@ function generateChart() {
       },
     },
   });
+  elInvertSelectionBtn.style.display = '';
 }
 
 function gscDataFlat() {
@@ -434,7 +452,7 @@ async function downloadZIPs() {
     completed++;
     const remaining = dlProgress - completed + 1;
     document.title = `${remaining} to download`;
-    elFetchProgress.textContent = `${remaining} to download`;
+    elFetchProgressLabel.textContent = `${remaining} to download`;
     elFetchProgress.style.width = `${Math.floor((completed / (dlProgress + 1)) * 100)}%`;
   }
 
@@ -537,6 +555,7 @@ async function downloadZIPs() {
 
   filters.hostname = hostname;
   elHostname.value = hostname;
+  elDownloadBtnTxt.textContent = shortLabel(hostname);
   const datalist = document.getElementById('hostname-list');
   const listed = new Set([...datalist.options].map((o) => o.value));
   if (!listed.has(hostname)) {

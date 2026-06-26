@@ -5,11 +5,12 @@ A Chrome extension for efficiently downloading and visualising Google Search Con
 ## Features
 
 - **Download crawl stats** across all categories (response codes, file types, purpose, Googlebot type) for any GSC property you have access to
-- **Interactive chart** (Billboard.js) with selectable metrics and categories
-- **Tabular view** (Tabulator) with sorting, pagination, and CSV export
+- **Interactive chart** (Billboard.js) with selectable metrics and categories; instant legend toggle; **Invert** button to flip the visible series selection
+- **Filterable table** (Tabulator) with per-column header filters, sorting, pagination, and CSV export
 - **Scheduled downloads** via Chrome alarms — run hourly, every 6/12 hours, daily, or weekly at a chosen time of day (and day of week for weekly jobs), even when no extension tab is open
-- **Data freshness indicator** — shows the date of the latest stored data point and how many days ago it was fetched, with a per-property delete button
-- **Backup & restore** — export all stored data as a ZIP, restore from it at any time
+- **Data freshness indicator** — shows the date of the latest stored data point and how many days ago it was fetched
+- **Stored Properties list** on the Options page — browse all properties with stored data, see date ranges, open them in the chart view, or delete individual datasets
+- **Backup & restore** — export all stored data as a ZIP; preview before restoring via an explicit Restore button
 - **Account indicator** — shows the currently signed-in Google account and prompts to sign in when not authenticated
 - **Property autocomplete** — reads all accessible GSC properties from the page and populates a searchable datalist
 
@@ -88,10 +89,19 @@ src/
 5. Use the **⚡ Run now** button to trigger a job immediately for testing
 6. Jobs survive browser restarts and extension updates; the **Next run** column shows the upcoming scheduled time
 
+### Stored Properties
+
+The Options page lists every property that has data stored locally:
+
+- **Date range** — earliest and latest date covered
+- **View** (graph icon) — opens the crawl-stats page pre-loaded with that property's data, even if you currently have no active GSC session for it
+- **Delete** (trash icon) — removes all stored data for that property
+
 ### Backup & restore
 
 - **Backup data** exports all stored crawl data as a timestamped ZIP
-- Drag a backup ZIP onto the drop area (or use the file picker) to restore
+- Drag a backup ZIP onto the drop area (or use the file picker) to stage it; the number of properties found is shown before anything is written
+- Click **Restore** to apply the backup to storage
 
 ## Requirements
 

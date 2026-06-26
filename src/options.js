@@ -20,14 +20,20 @@ function backupData() {
   });
 }
 
+let pendingRestore = null;
+
 function readFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
     new JSZip().loadAsync(reader.result).then((zip) => {
       zip.file('backup.json').async('string').then((fileData) => {
         try {
-          chrome.storage.local.set(JSON.parse(fileData));
+          pendingRestore = JSON.parse(fileData);
+          const count = Object.keys(pendingRestore).filter(k => k !== 'cronJobs').length;
+          document.getElementById('restoreBtn').disabled = false;
+          document.getElementById('restoreInfo').textContent = `${count} propert${count === 1 ? 'y' : 'ies'} found in backup`;
         } catch (e) {
+          document.getElementById('restoreInfo').textContent = 'Invalid backup file';
           console.error(e);
         }
       });
@@ -37,6 +43,16 @@ function readFile(file) {
 }
 
 document.getElementById('backup').addEventListener('click', backupData);
+
+document.getElementById('restoreBtn').addEventListener('click', () => {
+  if (!pendingRestore) return;
+  chrome.storage.local.set(pendingRestore, () => {
+    pendingRestore = null;
+    document.getElementById('restoreBtn').disabled = true;
+    document.getElementById('restoreInfo').textContent = 'Restore complete';
+    renderProperties();
+  });
+});
 
 const dropArea = document.getElementById('drop-area');
 dropArea.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
@@ -209,6 +225,53 @@ async function renderJobs(cronJobs) {
   }
 }
 
+// ── Stored Properties ────────────────────────────────────────
+
+async function renderProperties() {
+  const data = await chrome.storage.local.get(null);
+  const tbody = document.getElementById('properties-tbody');
+  const emptyRow = document.getElementById('properties-empty');
+  const keys = Object.keys(data).filter(k => k !== 'cronJobs');
+
+  [...tbody.querySelectorAll('tr[data-property]')].forEach(r => r.remove());
+  emptyRow.style.display = keys.length ? 'none' : '';
+
+  for (const key of keys) {
+    const dates = Object.keys(data[key] || {}).sort();
+    const range = dates.length
+      ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} – ${dates[dates.length - 1]}`)
+      : '—';
+    const entryCount = dates.reduce((n, d) => n + Object.keys(data[key][d]).length, 0);
+    const viewUrl = chrome.runtime.getURL('crawl-stats.html') + '?property=' + encodeURIComponent(key);
+
+    const tr = document.createElement('tr');
+    tr.dataset.property = key;
+    tr.innerHTML = `
+      <td class="text-truncate" style="max-width:260px" title="${key}">
+        <code class="small">${key}</code>
+      </td>
+      <td class="text-nowrap small">${range}</td>
+      <td class="text-nowrap small">${entryCount.toLocaleString()}</td>
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-outline-primary ms-1" href="${viewUrl}" target="_blank" title="View">
+          <i class="bi bi-graph-up"></i>
+        </a>
+        <button class="btn btn-sm btn-outline-danger delete-prop-btn ms-1" title="Delete">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    `;
+
+    tr.querySelector('.delete-prop-btn').addEventListener('click', async () => {
+      if (!confirm(`Delete all stored data for "${key}"?`)) return;
+      await chrome.storage.local.remove(key);
+      renderProperties();
+    });
+
+    tbody.appendChild(tr);
+  }
+}
+
 // Populate property datalist from existing storage keys
 async function populatePropertyList() {
   const data = await chrome.storage.local.get(null);
@@ -242,5 +305,6 @@ document.getElementById('cron-form').addEventListener('submit', async (e) => {
 // Init
 (async () => {
   await populatePropertyList();
+  await renderProperties();
   renderJobs(await loadJobs());
 })();
