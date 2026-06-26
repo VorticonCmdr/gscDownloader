@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GSC Crawl Stats Downloader</title>
+  <meta name="description" content="A Chrome extension to efficiently download, visualise, and schedule Google Search Console crawl statistics.">
+  <link rel="icon" type="image/png" href="assets/icon128.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #1a73e8;
+      --brand-dark: #1557b0;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      line-height: 1.6;
+      background: #fff;
+    }
+
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      color: #fff;
+      padding: 72px 24px 80px;
+      text-align: center;
+    }
+
+    .hero-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+
+    .hero h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin-bottom: 16px;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      color: #94a3b8;
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; text-decoration: none; }
+
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-outline { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.4); }
+
+    /* ── Sections ── */
+    .section {
+      padding: 72px 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--brand);
+      margin-bottom: 8px;
+    }
+
+    .section h2 {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -.015em;
+      margin-bottom: 12px;
+    }
+
+    .section > p {
+      color: var(--muted);
+      max-width: 600px;
+      margin-bottom: 48px;
+    }
+
+    /* ── Feature grid ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .feature-icon {
+      font-size: 1.6rem;
+      margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* ── Screenshots ── */
+    .screenshots { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+    .screenshot-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    @media (max-width: 680px) {
+      .screenshot-block { grid-template-columns: 1fr; }
+    }
+
+    .screenshot-item h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .screenshot-item p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .screenshot-item img {
+      width: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    }
+
+    /* ── Install ── */
+    .install-section {
+      text-align: center;
+      padding: 72px 24px;
+    }
+
+    .install-section h2 {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .install-section p {
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 480px;
+      margin: 0 auto 36px;
+      text-align: left;
+    }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step p { font-size: 0.9rem; color: var(--text); margin: 0; }
+    .step code { font-size: 0.85rem; background: #e5e7eb; padding: 1px 5px; border-radius: 4px; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <img src="assets/icon128.png" alt="Extension icon" class="hero-icon">
+    <h1>GSC Crawl Stats Downloader</h1>
+    <p>Download, visualise, and schedule Google Search Console crawl statistics — all in your browser, no backend required.</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="https://github.com/VorticonCmdr/gscDownloader/releases/latest" target="_blank">
+        ⬇ Download latest release
+      </a>
+      <a class="btn btn-outline" href="https://github.com/VorticonCmdr/gscDownloader" target="_blank">
+        View on GitHub
+      </a>
+    </div>
+  </header>
+
+  <!-- Features -->
+  <div class="section">
+    <div class="section-label">Features</div>
+    <h2>Everything you need for crawl stat analysis</h2>
+    <p>Built as a Chrome extension — no server, no API key, no data leaves your browser.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📥</div>
+        <h3>Full category download</h3>
+        <p>Fetches all crawl stat categories in one go: response codes, file types, Googlebot type, and more.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h3>Interactive chart</h3>
+        <p>Line chart with instant legend toggle and an <strong>Invert</strong> button to flip your series selection — no lag even with many categories.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Filterable table</h3>
+        <p>Per-column header filters, numeric ≥ filters, sortable columns, pagination, and one-click CSV export.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⏰</div>
+        <h3>Scheduled downloads</h3>
+        <p>Set hourly, daily, or weekly jobs via Chrome alarms — runs in the background even without an open tab.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗄️</div>
+        <h3>Stored Properties</h3>
+        <p>Browse every property with local data: see date ranges, open in the chart view, or delete individual datasets — from the Options page.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💾</div>
+        <h3>Backup &amp; restore</h3>
+        <p>Export all data as a timestamped ZIP. Preview the property count before writing, then restore with a single click.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screenshots -->
+  <div class="screenshots">
+    <div class="section">
+      <div class="section-label">Screenshots</div>
+      <h2>See it in action</h2>
+      <p>A clean, card-based UI with live progress — straight in your browser, no setup required.</p>
+
+      <div class="screenshot-block">
+        <div class="screenshot-item">
+          <h3>Crawl stats view</h3>
+          <p>Interactive chart and filterable table with all crawl categories for any GSC property.</p>
+          <img src="assets/crawl-stats.png" alt="Crawl stats main view">
+        </div>
+        <div class="screenshot-item">
+          <h3>Options page</h3>
+          <p>Manage scheduled jobs, browse stored properties, and handle backup/restore.</p>
+          <img src="assets/options.png" alt="Options page">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install -->
+  <div class="install-section">
+    <h2>Getting started</h2>
+    <p>Install from the Chrome Web Store or load from source in minutes.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p>Download the <a href="https://github.com/VorticonCmdr/gscDownloader/releases/latest">latest <code>extension.zip</code></a> from the Releases page.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p>Unzip it, then open <code>chrome://extensions</code> and enable <strong>Developer mode</strong>.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p>Click <strong>Load unpacked</strong> and select the unzipped folder.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <p>Open Google Search Console in a tab, then click the extension icon.</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <a class="btn btn-primary" href="https://github.com/VorticonCmdr/gscDownloader/releases/latest" target="_blank">
+        ⬇ Download extension.zip
+      </a>
+      <a class="btn btn-outline" style="border-color: #d1d5db; color: #374151;" href="https://github.com/VorticonCmdr/gscDownloader" target="_blank">
+        View source on GitHub
+      </a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>
+      <a href="https://github.com/VorticonCmdr/gscDownloader">GitHub</a> ·
+      <a href="https://github.com/VorticonCmdr/gscDownloader/releases">Releases</a> ·
+      <a href="https://github.com/VorticonCmdr/gscDownloader/blob/master/README.md">Docs</a>
+    </p>
+  </footer>
+
+</body>
+</html>
