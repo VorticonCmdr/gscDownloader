@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GSC crawl stats downloader",
   "description": "a helper to efficiently download crawl data from GSC",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "homepage_url": "https://www.decompile.tools/gscDownloader/",
   "permissions": [
     "downloads",
