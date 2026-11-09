@@ -2,113 +2,142 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
-    <title>GSC crawl stats — Options</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GSC Crawl Stats — Settings</title>
   </head>
   <body>
-    <div class="container py-4" style="max-width: 860px;">
+    <header class="app-header d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+      <a href="crawl-stats.html" class="btn btn-sm btn-link text-body-secondary text-decoration-none ps-0">
+        <i class="bi bi-arrow-left"></i> Crawl stats
+      </a>
+      <span class="fw-semibold text-body-secondary ms-auto" style="font-size:0.85rem; letter-spacing:.04em;">GSC CRAWL STATS · SETTINGS</span>
+    </header>
 
-      <!-- Backup & Restore -->
-      <h5 class="mb-3">Backup &amp; Restore</h5>
-      <div class="row g-2 mb-3">
-        <div class="col-auto">
-          <button class="btn btn-primary" type="button" id="backup">
-            <i class="bi bi-cloud-download"></i> Backup data
+    <main class="container py-4" style="max-width: 1000px;">
+
+      <!-- Scheduled downloads -->
+      <section class="mb-5" aria-labelledby="h-schedule">
+        <h2 id="h-schedule" class="h5 mb-1">Scheduled downloads</h2>
+        <p class="text-body-secondary small mb-3">Download a property’s crawl stats automatically, even when no extension tab is open.</p>
+
+        <form id="cron-form" class="row g-2 align-items-end" novalidate>
+          <div class="col-12 col-md">
+            <label for="cron-property" class="form-label text-body-secondary small mb-1">Property</label>
+            <input type="text" id="cron-property" class="form-control"
+              list="cron-property-list"
+              placeholder="https://example.com/ or sc-domain:example.com"
+              autocomplete="off" required aria-describedby="cron-property-feedback">
+            <datalist id="cron-property-list"></datalist>
+            <div id="cron-property-feedback" class="invalid-feedback"></div>
+          </div>
+          <div class="col-auto">
+            <label for="cron-schedule" class="form-label text-body-secondary small mb-1">Interval</label>
+            <select id="cron-schedule" class="form-select">
+              <option value="1440" selected>Daily</option>
+              <option value="10080">Weekly</option>
+            </select>
+          </div>
+          <div class="col-auto" id="cron-day-col" hidden>
+            <label for="cron-day" class="form-label text-body-secondary small mb-1">Day</label>
+            <select id="cron-day" class="form-select">
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+              <option value="5">Friday</option>
+              <option value="6">Saturday</option>
+              <option value="0">Sunday</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <label for="cron-time" class="form-label text-body-secondary small mb-1">At (local time)</label>
+            <input type="time" id="cron-time" class="form-control" value="03:00" required>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-plus-circle"></i> Add
+            </button>
+          </div>
+        </form>
+        <p class="form-text mt-2 mb-3">
+          Runs while Chrome is open. If Chrome was closed at the scheduled time, the download runs the next time Chrome starts.
+          You must be signed in to Search Console in this browser.
+        </p>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="cron-table">
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Schedule</th>
+                <th scope="col">Last download</th>
+                <th scope="col">Next run</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cron-tbody">
+              <tr id="cron-empty">
+                <td colspan="6" class="text-body-secondary text-center py-3">No scheduled downloads yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Stored properties -->
+      <section class="mb-5" aria-labelledby="h-stored">
+        <h2 id="h-stored" class="h5 mb-1">Stored data</h2>
+        <p class="text-body-secondary small mb-3">Crawl stats saved in this browser, per property.</p>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="properties-table">
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Coverage</th>
+                <th scope="col">Latest data</th>
+                <th scope="col" class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="properties-tbody">
+              <tr id="properties-empty">
+                <td colspan="4" class="text-body-secondary text-center py-3">Nothing stored yet. Download a property on the crawl stats page.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Backup & restore -->
+      <section class="mb-4" aria-labelledby="h-backup">
+        <h2 id="h-backup" class="h5 mb-1">Backup &amp; restore</h2>
+        <p class="text-body-secondary small mb-3">Move your stored data and schedules to another browser, or keep a copy.</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button class="btn btn-outline-primary" type="button" id="backup">
+            <i class="bi bi-archive"></i> Export all data
+          </button>
+          <button class="btn btn-outline-secondary" type="button" id="restoreToggle" aria-expanded="false" aria-controls="restorePanel">
+            <i class="bi bi-box-arrow-in-up"></i> Restore from a backup…
           </button>
         </div>
-      </div>
-      <div class="bg-secondary-subtle rounded px-4 py-4 text-center mb-2" id="drop-area">
-        <p class="text-muted mb-2">Drop backup ZIP here or select file</p>
-        <input type="file" id="fileInput" name="fileInput" accept="application/zip">
-      </div>
-      <div class="d-flex align-items-center gap-3 mb-5">
-        <button class="btn btn-success" type="button" id="restoreBtn" disabled>
-          <i class="bi bi-arrow-counterclockwise"></i> Restore
-        </button>
-        <small id="restoreInfo" class="text-muted"></small>
-      </div>
 
-      <!-- Stored Properties -->
-      <h5 class="mb-3">Stored Properties</h5>
-      <table class="table table-sm align-middle mb-5" id="properties-table">
-        <thead class="table-light">
-          <tr>
-            <th>Property</th>
-            <th>Date range</th>
-            <th>Entries</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="properties-tbody">
-          <tr id="properties-empty">
-            <td colspan="4" class="text-muted text-center py-3">No stored data</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <hr class="mb-4">
-
-      <!-- Cron Jobs -->
-      <h5 class="mb-3">Scheduled Downloads</h5>
-
-      <form id="cron-form" class="row g-2 mb-4 align-items-end">
-        <div class="col">
-          <label class="form-label text-muted small mb-1">Property</label>
-          <input type="text" id="cron-property" class="form-control"
-            list="cron-property-list"
-            placeholder="https://example.com/ or sc-domain:example.com"
-            autocomplete="off" required>
-          <datalist id="cron-property-list"></datalist>
+        <div id="restorePanel" hidden>
+          <div class="bg-body-tertiary border rounded px-4 py-4 text-center mb-2" id="drop-area">
+            <p class="text-body-secondary mb-2">Drop a backup ZIP here, or choose a file</p>
+            <label for="fileInput" class="visually-hidden">Backup file</label>
+            <input type="file" id="fileInput" name="fileInput" accept="application/zip,.zip" class="form-control mx-auto" style="max-width:360px;">
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-success" type="button" id="restoreBtn" disabled>
+              <i class="bi bi-arrow-counterclockwise"></i> Restore
+            </button>
+            <small id="restoreInfo" class="text-body-secondary" role="status"></small>
+          </div>
+          <p class="form-text mt-2 mb-0">Restoring merges with what’s stored: nothing you already have is deleted. For dates in both, the backup wins.</p>
         </div>
-        <div class="col-auto">
-          <label class="form-label text-muted small mb-1">Interval</label>
-          <select id="cron-schedule" class="form-select">
-            <option value="1440" selected>Daily</option>
-            <option value="10080">Weekly</option>
-          </select>
-        </div>
-        <div class="col-auto" id="cron-day-col" style="display:none">
-          <label class="form-label text-muted small mb-1">Day</label>
-          <select id="cron-day" class="form-select">
-            <option value="1">Monday</option>
-            <option value="2">Tuesday</option>
-            <option value="3">Wednesday</option>
-            <option value="4">Thursday</option>
-            <option value="5">Friday</option>
-            <option value="6">Saturday</option>
-            <option value="0">Sunday</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <label class="form-label text-muted small mb-1">At</label>
-          <input type="time" id="cron-time" class="form-control" value="03:00" required>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Add
-          </button>
-        </div>
-      </form>
+      </section>
 
-      <table class="table table-sm align-middle" id="cron-table">
-        <thead class="table-light">
-          <tr>
-            <th>Property</th>
-            <th>Interval</th>
-            <th>Last download</th>
-            <th>Next run</th>
-            <th>Status</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="cron-tbody">
-          <tr id="cron-empty">
-            <td colspan="6" class="text-muted text-center py-3">No scheduled jobs</td>
-          </tr>
-        </tbody>
-      </table>
-
-    </div>
+    </main>
 
     <script type="module" src="./options.js"></script>
   </body>

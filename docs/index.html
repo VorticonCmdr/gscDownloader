@@ -156,6 +156,8 @@
       .screenshot-block { grid-template-columns: 1fr; }
     }
 
+    .screenshot-item.wide { grid-column: 1 / -1; }
+
     .screenshot-item h3 {
       font-size: 1rem;
       font-weight: 700;
@@ -170,6 +172,7 @@
 
     .screenshot-item img {
       width: 100%;
+      height: auto;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       box-shadow: 0 4px 20px rgba(0,0,0,.08);
@@ -275,33 +278,48 @@
     <div class="feature-grid">
       <div class="feature-card">
         <div class="feature-icon">📥</div>
-        <h3>Full category download</h3>
-        <p>Fetches all crawl stat categories in one go: response codes, file types, Googlebot type, and more.</p>
+        <h3>Every crawl stat, one click</h3>
+        <p>Downloads all 43 Search Console crawl-stat exports at once — response codes, file types, crawl purpose and Googlebot type — with live progress. Optionally keeps the raw ZIP files too.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">📈</div>
-        <h3>Interactive chart</h3>
-        <p>Line chart with instant legend toggle and an <strong>Invert</strong> button to flip your series selection — no lag even with many categories.</p>
+        <h3>Readable chart</h3>
+        <p>Response codes colour-coded by class (2xx green, 3xx blue, 4xx orange, 5xx red), labelled axes, sizes in KB/MB. Toggle series in the legend; <strong>Invert</strong> flips the selection.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🔍</div>
-        <h3>Filterable table</h3>
-        <p>Per-column header filters, numeric ≥ filters, sortable columns, pagination, and one-click CSV export.</p>
+        <h3>Filterable table &amp; CSV</h3>
+        <p>Filter by type, date and minimum values; export just the filtered rows or everything. CSV columns keep exact byte counts and stable header names for your spreadsheets.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">⏰</div>
         <h3>Scheduled downloads</h3>
-        <p>Set daily or weekly jobs at a time of your choice via Chrome alarms — runs in the background even without an open tab.</p>
+        <p>Daily or weekly at your local time, even with no extension tab open. DST-safe, and a run missed while Chrome was closed happens at the next start. Each export is saved as it arrives.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🗄️</div>
-        <h3>Stored Properties</h3>
-        <p>Browse every property with local data: see date ranges, open in the chart view, or delete individual datasets — from the Options page.</p>
+        <div class="feature-icon">🚨</div>
+        <h3>Failure alerts</h3>
+        <p>If a scheduled download fails — for example because you were signed out — the toolbar icon shows a red <strong>!</strong> and the extension tells you why, in plain language.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🕒</div>
+        <h3>Freshness at a glance</h3>
+        <p>See how old your data is; the indicator turns amber after a week and red after two. One click updates it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧭</div>
+        <h3>Guided first run</h3>
+        <p>A three-step start card gets you from install to your first chart: sign in, pick a property, download. Your Search Console properties are suggested as you type.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">💾</div>
-        <h3>Backup &amp; restore</h3>
-        <p>Export all data as a timestamped ZIP. Preview the property count before writing, then restore with a single click.</p>
+        <h3>Stored data, backup &amp; restore</h3>
+        <p>See coverage per property, open or delete datasets, and move everything to another browser. Restoring merges with what you have — it never deletes newer data.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌗</div>
+        <h3>Light &amp; dark</h3>
+        <p>Follows your system colour scheme, chart and table included. Form fields and icon buttons are labelled for screen readers.</p>
       </div>
     </div>
   </div>
@@ -311,18 +329,23 @@
     <div class="section">
       <div class="section-label">Screenshots</div>
       <h2>See it in action</h2>
-      <p>A clean, card-based UI with live progress — straight in your browser, no setup required.</p>
+      <p>Everything runs in your browser — no server, no API key, no setup.</p>
 
       <div class="screenshot-block">
-        <div class="screenshot-item">
-          <h3>Crawl stats view</h3>
-          <p>Interactive chart and filterable table with all crawl categories for any GSC property.</p>
-          <img src="assets/crawl-stats.png" alt="Crawl stats main view">
+        <div class="screenshot-item wide">
+          <h3>Crawl stats</h3>
+          <p>Chart and filterable table for any Search Console property — here with “OK (200)” hidden to show a redirect wave after a URL change, a stretch of 404s and a short 5xx incident.</p>
+          <img src="assets/crawl-stats.png" alt="Crawl stats page: line chart of crawl requests by response code and a filterable table" width="1280" height="800" loading="lazy">
         </div>
         <div class="screenshot-item">
-          <h3>Options page</h3>
-          <p>Manage scheduled jobs, browse stored properties, and handle backup/restore.</p>
-          <img src="assets/options.png" alt="Options page">
+          <h3>Dark mode</h3>
+          <p>Follows your system setting automatically.</p>
+          <img src="assets/crawl-stats-dark.png" alt="Crawl stats page in dark mode" width="1280" height="800" loading="lazy">
+        </div>
+        <div class="screenshot-item">
+          <h3>Settings</h3>
+          <p>Scheduled downloads with status and plain-language errors, stored data per property, backup &amp; restore.</p>
+          <img src="assets/options.png" alt="Settings page: scheduled downloads, one failed with an explanation, and stored data per property" width="1280" height="800" loading="lazy">
         </div>
       </div>
     </div>

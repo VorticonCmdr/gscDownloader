@@ -15,44 +15,47 @@ import {
   parseSummaryZip,
 } from './lib/gsc.js';
 import { hydrateIcons } from './lib/icons.js';
+import { applySystemTheme, daysSince, formatBytes, friendlyError, jobErrorText, relativeDays } from './lib/ui.js';
 
+applySystemTheme();
 hydrateIcons();
+
+const APP_TITLE = 'GSC Crawl Stats';
 
 let chromeDownload = false;
 let downloading = false;
 let chart;
 
+// Semantic palette for response codes: 2xx green, 3xx blue, 4xx orange, 5xx red,
+// unreachable/robots/redirect errors purple. Other breakdowns use Billboard defaults.
 const colors = {
-  'AdsBot': '',
-  'CSS': '',
-  'Desktop': '',
-  'Discovery': '',
-  'HTML': '',
-  'Image': '',
-  'JSON': '',
-  'JavaScript': '',
-  'Moved (other)': '#1f77b4',
-  'Moved permanently (301)': '#68a7d2',
-  'Moved temporarily (302)': '#9268d2',
-  'Not found (404)': '#ff7f0e',
-  'Not modified (304)': '#2ca02c',
-  'OK (200)': '#0ff90f',
-  'Other XML': '',
-  'Other agent type': '',
-  'Other client error (4XX)': '#ff650e',
-  'Other file type': '',
-  'PDF': '',
-  'Page could not be reached': '#d62764',
-  'Page resource load': '',
-  'Redirect error': '#ff6161',
-  'Refresh': '',
-  'Server error (5XX)': '#ff3333',
-  'Smartphone': '',
-  'Syndication': '',
-  'Unauthorized (401/407)': '#fb4d0a',
-  'Video': '',
-  'robots.txt not available': '#d62728',
-  'summary': '#000000',
+  'OK (200)': '#2e9e44',
+  'Not modified (304)': '#7cc68a',
+  'Moved permanently (301)': '#1f77b4',
+  'Moved temporarily (302)': '#5fa2dd',
+  'Moved (other)': '#9cc5ea',
+  'Not found (404)': '#f28e2b',
+  'Unauthorized (401/407)': '#e15759',
+  'Other client error (4XX)': '#ffbe7d',
+  'Server error (5XX)': '#c0392b',
+  'Page could not be reached': '#8e44ad',
+  'robots.txt not available': '#b07cc6',
+  'Redirect error': '#5b2c6f',
+  'summary': '#555555',
+};
+
+const METRICS = {
+  'Total crawl requests': { axis: 'Crawl requests', format: (n) => n.toLocaleString(), unit: (n) => `${n.toLocaleString()} requests` },
+  'Total download size (Bytes)': { axis: 'Download size', format: formatBytes, unit: formatBytes },
+  'Average response time (ms)': { axis: 'Avg. response time (ms)', format: (n) => n.toLocaleString(), unit: (n) => `${n.toLocaleString()} ms` },
+};
+
+const CATEGORY_LABELS = {
+  summary: 'summary',
+  response: 'response codes',
+  file_type: 'file types',
+  purpose: 'crawl purpose',
+  googlebot_type: 'Googlebot types',
 };
 
 let chartConfig = { metric: 'Total crawl requests' };
@@ -63,47 +66,65 @@ function shortLabel(url) {
 
 function numberToLocaleString(cell) {
   const value = cell.getValue();
-  if (typeof value === 'number') return value.toLocaleString();
-  return '-';
+  return typeof value === 'number' ? value.toLocaleString() : '-';
+}
+
+function bytesFormatter(cell) {
+  return formatBytes(cell.getValue());
 }
 
 function headerFilterGte(headerValue, rowValue) {
   return headerValue === '' || headerValue === null || rowValue >= Number(headerValue);
 }
 
+// CSV headers keep the original field names (titleDownload) so exports stay
+// compatible with v2.2 and earlier, whatever the on-screen column titles are.
+const numberCol = (title, field, formatter = numberToLocaleString) => ({
+  title, field, titleDownload: field, sorter: 'number', formatter, hozAlign: 'right',
+  headerFilter: 'input', headerFilterPlaceholder: '≥ min', headerFilterFunc: headerFilterGte,
+});
+
 const columns = [
-  { title: 'Date', field: 'Date', sorter: 'string', headerFilter: 'input' },
-  { title: 'resource_id', field: 'resource_id', sorter: 'string', visible: false },
-  { title: 'hostname', field: 'hostname', sorter: 'string', headerFilter: 'input' },
-  { title: 'category', field: 'category', sorter: 'string', visible: false },
-  { title: 'type', field: 'type', sorter: 'string', headerFilter: 'input' },
-  { title: 'Total crawl requests', field: 'Total crawl requests', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
-  { title: 'Total download size (Bytes)', field: 'Total download size (Bytes)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
-  { title: 'Average response time (ms)', field: 'Average response time (ms)', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', headerFilter: 'input', headerFilterPlaceholder: '≥', headerFilterFunc: headerFilterGte },
-  { title: 'Affected pages', field: 'Affected pages', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', visible: false },
+  { title: 'Date', field: 'Date', sorter: 'string', minWidth: 120, headerFilter: 'input', headerFilterPlaceholder: 'YYYY-MM' },
+  { title: 'resource_id', field: 'resource_id', visible: false, download: true },
+  // Same value on every row (the property is in the box above); kept for CSV export.
+  { title: 'hostname', field: 'hostname', visible: false, download: true },
+  // Always a single value: the breakdown dropdown above filters by it; kept for CSV export.
+  { title: 'category', field: 'category', visible: false, download: true },
+  {
+    title: 'Type', field: 'type', titleDownload: 'type', sorter: 'string',
+    headerFilter: 'list',
+    headerFilterParams: { valuesLookup: 'active', clearable: true, autocomplete: true, listOnEmpty: true },
+    headerFilterPlaceholder: 'All types',
+  },
+  numberCol('Crawl requests', 'Total crawl requests'),
+  numberCol('Download size', 'Total download size (Bytes)', bytesFormatter),
+  numberCol('Avg. response time (ms)', 'Average response time (ms)'),
+  { title: 'Affected pages', field: 'Affected pages', sorter: 'number', formatter: numberToLocaleString, hozAlign: 'right', visible: false, download: true },
 ];
 
 // Cache DOM references
-const elMetric = document.getElementById('metric');
-const elCategory = document.getElementById('category');
-const elHostname = document.getElementById('hostname');
-const elHostnameList = document.getElementById('hostname-list');
-const elDownloadBtn = document.getElementById('downloadBtn');
-const elDownloadBtnSave = document.getElementById('downloadBtnSave');
-const elDownloadBtnTxt = document.getElementById('downloadBtnTxt');
-const elErrorMsg = document.getElementById('errorMsg');
-const elErrorMsgText = document.getElementById('errorMsgText');
-const elNotLoggedInMsg = document.getElementById('notLoggedInMsg');
-const elUserEmailText = document.getElementById('userEmailText');
-const elFetchBar = document.getElementById('fetchBar');
-const elFetchProgress = document.getElementById('fetchProgress');
-const elFetchProgressLabel = document.getElementById('fetchProgressLabel');
-const elExportBtn = document.getElementById('exportBtn');
-const elDownloadToggleBtn = document.getElementById('downloadToggleBtn');
-const elDataFreshness = document.getElementById('dataFreshness');
-const elInvertSelectionBtn = document.getElementById('invertSelectionBtn');
+const $ = (id) => document.getElementById(id);
+const elMetric = $('metric');
+const elCategory = $('category');
+const elHostname = $('hostname');
+const elHostnameList = $('hostname-list');
+const elDownloadBtnTxt = $('downloadBtnTxt');
+const elDownloadToggleBtn = $('downloadToggleBtn');
+const elErrorMsg = $('errorMsg');
+const elErrorMsgText = $('errorMsgText');
+const elNotLoggedInMsg = $('notLoggedInMsg');
+const elUserEmail = $('userEmail');
+const elUserEmailText = $('userEmailText');
+const elFetchBar = $('fetchBar');
+const elFetchProgress = $('fetchProgress');
+const elFetchProgressLabel = $('fetchProgressLabel');
+const elExportFilteredBtn = $('exportFilteredBtn');
+const elDataFreshness = $('dataFreshness');
+const elInvertSelectionBtn = $('invertSelectionBtn');
+const elEmptyState = $('emptyState');
+const elDataView = $('dataView');
 
-// Initialize Bootstrap dropdowns
 document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((el) => new Dropdown(el));
 
 const table = new Tabulator('#table', {
@@ -114,27 +135,77 @@ const table = new Tabulator('#table', {
   paginationSize: 100,
   paginationSizeSelector: [10, 100, 1000],
   initialSort: [{ column: 'Date', dir: 'asc' }],
+  placeholder: 'No rows match the current filters',
   columns,
+});
+// Tabulator builds asynchronously; never replace data before it's ready.
+const tableReady = new Promise((resolve) => table.on('tableBuilt', resolve));
+
+table.on('dataFiltered', (_filters, rows) => {
+  elExportFilteredBtn.textContent = `Filtered rows (${rows.length.toLocaleString()})`;
 });
 
 // --- State ---
-const session = { QrtxK: null, SNlM0e: null }; // GSC tokens
+const session = { QrtxK: null, SNlM0e: null, email: null }; // GSC tokens
+let gscProperties = []; // [{url,label}] accessible in GSC
 let target = { resource_id: null, hostname: null }; // property to download
 let filters = { category: 'response', hostname: null };
 let totalData = {};
 let gscData = {};
 
+const targetProperty = () => target.hostname || target.resource_id || '';
+
 // --- UI messages ---
 function showError(message) {
   elErrorMsgText.textContent = message;
-  elErrorMsg.style.display = 'block';
+  elErrorMsg.hidden = false;
 }
 
-function hideError() {
-  elErrorMsg.style.display = 'none';
+function hideAlerts() {
+  elErrorMsg.hidden = true;
+  elNotLoggedInMsg.hidden = true;
+}
+
+function setTarget(next) {
+  target = next;
+  const property = targetProperty();
+  const label = property ? `Download · ${shortLabel(property)}` : 'Download';
+  elDownloadBtnTxt.textContent = label;
+  elDownloadToggleBtn.title = property ? `Download crawl stats for ${property}` : 'Choose a property first';
+  elDownloadToggleBtn.setAttribute('aria-label', label);
+  updateEmptyState();
+}
+
+function updateEmptyState() {
+  const signedIn = session.QrtxK != null;
+  const property = targetProperty();
+  $('stepSignIn').classList.toggle('done', signedIn);
+  $('stepSignIn').querySelector('.step-action').hidden = signedIn;
+  $('stepProperty').classList.toggle('done', Boolean(property));
+  $('stepPropertyBtn').textContent = property ? shortLabel(property) : 'Choose';
+  $('stepDownloadBtn').disabled = !(signedIn && property) || downloading;
+}
+
+function openSettings(e) {
+  e?.preventDefault();
+  chrome.runtime.openOptionsPage();
 }
 
 // --- Event listeners ---
+$('settingsBtn').addEventListener('click', openSettings);
+$('cronFailLink').addEventListener('click', openSettings);
+document.querySelectorAll('.retry-btn').forEach((btn) => btn.addEventListener('click', () => refreshSession()));
+document.addEventListener('visibilitychange', () => {
+  // Coming back from the sign-in tab: recover without a reload.
+  if (document.visibilityState === 'visible' && (!elNotLoggedInMsg.hidden || !elErrorMsg.hidden) && !downloading) {
+    refreshSession();
+  }
+});
+
+$('stepPropertyBtn').addEventListener('click', () => elHostname.focus());
+$('stepDownloadBtn').addEventListener('click', () => downloadZIPs());
+elDataFreshness.addEventListener('click', () => downloadZIPs());
+
 elMetric.addEventListener('change', function () {
   chartConfig.metric = this.value;
   generateChart();
@@ -155,16 +226,18 @@ elInvertSelectionBtn.addEventListener('click', () => {
   chart.show(hidden);
 });
 
-elExportBtn.addEventListener('click', () => {
+function exportCsv(range) {
   const slug = (filters.hostname || 'export').replace(/[^a-zA-Z0-9._-]/g, '_');
-  table.download('csv', `crawl-stats_${slug}.csv`, {}, 'all');
-});
+  table.download('csv', `crawl-stats_${slug}${range === 'active' ? `_${filters.category}` : ''}.csv`, {}, range);
+}
+elExportFilteredBtn.addEventListener('click', (e) => { e.preventDefault(); exportCsv('active'); });
+$('exportAllBtn').addEventListener('click', (e) => { e.preventDefault(); exportCsv('all'); });
 
-elDownloadBtn.addEventListener('click', (e) => {
+$('downloadBtn').addEventListener('click', (e) => {
   e.preventDefault();
   downloadZIPs();
 });
-elDownloadBtnSave.addEventListener('click', (e) => {
+$('downloadBtnSave').addEventListener('click', (e) => {
   e.preventDefault();
   chromeDownload = true;
   downloadZIPs();
@@ -173,8 +246,7 @@ elDownloadBtnSave.addEventListener('click', (e) => {
 elHostname.addEventListener('change', function () {
   const hostname = this.value.trim();
   if (!hostname) return;
-  target = { resource_id: hostname, hostname: null };
-  elDownloadBtnTxt.textContent = shortLabel(hostname);
+  setTarget({ resource_id: hostname, hostname: null });
   chrome.storage.local.get(hostname).then((result) => {
     if (result[hostname]) totalData[hostname] = result[hostname];
     showProperty(hostname, result[hostname] || {});
@@ -212,12 +284,48 @@ function extractProperties(doc) {
   }
 }
 
-async function fetchSession() {
-  const { QrtxK, SNlM0e, email, html } = await fetchWIZtokens();
-  session.QrtxK = QrtxK;
-  session.SNlM0e = SNlM0e;
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return { properties: extractProperties(doc), email };
+/** Fetch tokens + property list; update alerts, header and empty state. Returns success. */
+async function refreshSession() {
+  try {
+    const { QrtxK, SNlM0e, email, html } = await fetchWIZtokens();
+    Object.assign(session, { QrtxK, SNlM0e, email });
+    gscProperties = extractProperties(new DOMParser().parseFromString(html, 'text/html'));
+    if (gscProperties.length) chrome.storage.local.set({ gscProperties }); // for the options page
+    hideAlerts();
+    elUserEmail.hidden = !email;
+    elUserEmailText.textContent = email || '';
+    renderDatalist();
+    updateEmptyState();
+    return true;
+  } catch (err) {
+    console.error('Failed to fetch GSC session:', err);
+    Object.assign(session, { QrtxK: null, SNlM0e: null, email: null });
+    elUserEmail.hidden = true;
+    if (err.code === 'NOT_LOGGED_IN') {
+      elErrorMsg.hidden = true;
+      elNotLoggedInMsg.hidden = false;
+    } else {
+      elNotLoggedInMsg.hidden = true;
+      showError(friendlyError(err));
+    }
+    updateEmptyState();
+    return false;
+  }
+}
+
+/** Datalist = GSC properties ∪ stored properties; stored ones are marked. */
+function renderDatalist() {
+  const stored = new Set(Object.keys(totalData).filter(isPropertyKey));
+  const entries = new Map(gscProperties.map(({ url, label }) => [url, label]));
+  stored.forEach((key) => { if (!entries.has(key)) entries.set(key, ''); });
+
+  elHostnameList.replaceChildren(...[...entries].map(([url, label]) => {
+    const opt = document.createElement('option');
+    opt.value = url;
+    const parts = [label && label !== url ? label : '', stored.has(url) ? 'data stored' : ''].filter(Boolean);
+    if (parts.length) opt.label = parts.join(' · ');
+    return opt;
+  }));
 }
 
 /** The GSC tab the user is looking at, else any open GSC tab. */
@@ -229,63 +337,52 @@ async function findGscTab() {
   return tabs.find((t) => t.url) || null;
 }
 
-function addDatalistOption(value, label) {
-  if ([...elHostnameList.options].some((o) => o.value === value)) return;
-  const opt = document.createElement('option');
-  opt.value = value;
-  if (label) opt.label = label;
-  elHostnameList.appendChild(opt);
+function showCronFailures(cronJobs = {}) {
+  const failed = Object.values(cronJobs).filter((j) => j.lastError);
+  $('cronFailMsg').hidden = failed.length === 0;
+  if (!failed.length) return;
+  const [first] = failed;
+  const more = failed.length > 1 ? ` (+${failed.length - 1} more)` : '';
+  $('cronFailText').textContent = `Scheduled download for ${first.property} failed. ${jobErrorText(first)}${more}`;
+  $('cronFailText').title = first.lastError; // raw message for bug reports
 }
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.cronJobs) showCronFailures(changes.cronJobs.newValue);
+});
 
 // --- Initialization ---
 async function init() {
   // URL param from options page "View" link takes priority
   const urlParam = new URLSearchParams(location.search).get('property');
+  let initial = { resource_id: null, hostname: null };
   if (urlParam) {
-    target = { resource_id: urlParam, hostname: null };
+    initial = { resource_id: urlParam, hostname: null };
   } else {
     const tab = await findGscTab();
     if (tab) {
       const tabURL = new URL(tab.url);
-      target = {
+      initial = {
         resource_id: tabURL.searchParams.get('resource_id'),
         hostname: tabURL.searchParams.get('hostname'),
       };
     }
   }
 
-  // Fetch WIZ tokens + property list from GSC HTML
-  let properties = [];
-  try {
-    const result = await fetchSession();
-    properties = result.properties;
-    if (result.email) elUserEmailText.textContent = result.email;
-  } catch (err) {
-    console.error('Failed to fetch GSC session:', err);
-    if (err.code === 'NOT_LOGGED_IN') {
-      elNotLoggedInMsg.style.display = 'block';
-    } else {
-      showError(`Could not read Google Search Console (${err.message}).`);
-    }
-  }
-
-  const property = target.hostname || target.resource_id;
-  elDownloadBtnTxt.textContent = shortLabel(property || '');
-
-  // Populate datalist with all accessible GSC properties
-  properties.forEach(({ url, label }) => addDatalistOption(url, label));
-
-  // Load persisted data from storage
-  totalData = await chrome.storage.local.get(null);
-  const storedProperties = Object.keys(totalData).filter(isPropertyKey);
-  storedProperties.forEach((key) => addDatalistOption(key));
+  const [, stored] = await Promise.all([refreshSession(), chrome.storage.local.get(null)]);
+  totalData = stored;
+  if (!gscProperties.length && Array.isArray(stored.gscProperties)) gscProperties = stored.gscProperties;
+  showCronFailures(stored.cronJobs);
+  renderDatalist();
 
   // Pre-select: active GSC property, else first stored key
-  const initialHostname = property || storedProperties[0] || '';
-  if (!property && initialHostname) target = { resource_id: initialHostname, hostname: null };
-  showProperty(initialHostname, totalData[initialHostname] || {});
+  const storedProperties = Object.keys(totalData).filter(isPropertyKey);
+  const fromTab = initial.hostname || initial.resource_id;
+  const initialHostname = fromTab || storedProperties[0] || '';
+  setTarget(fromTab ? initial : { resource_id: initialHostname || null, hostname: null });
+  await showProperty(initialHostname, totalData[initialHostname] || {});
 
-  if (property && !totalData[property] && session.QrtxK != null) {
+  if (fromTab && !totalData[fromTab] && session.QrtxK != null) {
     downloadZIPs();
   }
 }
@@ -293,26 +390,35 @@ async function init() {
 init();
 
 // --- Rendering ---
-function showProperty(hostname, data) {
+async function showProperty(hostname, data) {
+  await tableReady;
   filters.hostname = hostname;
   elHostname.value = hostname;
   gscData = data;
-  table.replaceData(gscDataFlat()).then(() => {
-    applyFilters();
-    generateChart();
-    updateFreshness();
-  });
+
+  const hasData = Object.keys(gscData).length > 0;
+  const becameVisible = hasData && elDataView.hidden;
+  elEmptyState.hidden = hasData;
+  elDataView.hidden = !hasData; // unhide before charting so Billboard can measure
+  updateEmptyState();
+
+  await table.replaceData(gscDataFlat());
+  // Tabulator measured its header while the view was display:none (all heights 0).
+  if (becameVisible) table.redraw(true);
+  applyFilters();
+  generateChart();
+  updateFreshness();
 }
 
 function updateFreshness() {
   const dates = Object.keys(gscData);
-  if (dates.length === 0) {
-    elDataFreshness.textContent = '';
-    return;
-  }
+  elDataFreshness.hidden = dates.length === 0;
+  if (dates.length === 0) return;
   const latest = dates.reduce((a, b) => (a > b ? a : b));
-  const daysAgo = Math.floor((Date.now() - new Date(latest).getTime()) / 86400000);
-  elDataFreshness.textContent = `Latest data: ${latest} (${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`})`;
+  const age = daysSince(latest);
+  elDataFreshness.textContent = `Latest data: ${latest} (${relativeDays(latest)}) · Update`;
+  elDataFreshness.classList.toggle('stale-warn', age > 7 && age <= 14);
+  elDataFreshness.classList.toggle('stale-bad', age > 14);
 }
 
 function applyFilters() {
@@ -324,10 +430,11 @@ function applyFilters() {
 function generateChart() {
   if (!gscData || Object.keys(gscData).length === 0) {
     if (chart) { chart.destroy(); chart = null; }
-    elInvertSelectionBtn.style.display = 'none';
+    elInvertSelectionBtn.hidden = true;
     return;
   }
 
+  const metric = METRICS[chartConfig.metric];
   const chartColumns = [];
   const xColumn = ['x'];
   const xTemp = {};
@@ -357,23 +464,31 @@ function generateChart() {
       x: 'x',
       columns: chartColumns,
       colors,
+      names: { summary: 'Total' },
       type: line(),
     },
     transition: { duration: 0 },
-    padding: { left: 50, right: 20 },
+    padding: { left: 70, right: 20 },
     axis: {
       x: {
         type: 'timeseries',
         tick: { format: '%Y-%m-%d' },
       },
+      y: {
+        // Counts, sizes and times are never negative; don't let auto-padding dip below 0.
+        min: 0,
+        padding: { bottom: 0 },
+        label: { text: metric.axis, position: 'outer-middle' },
+        tick: { format: (v) => metric.format(v) },
+      },
     },
     tooltip: {
       format: {
-        value: (value) => value.toLocaleString(),
+        value: (value) => (typeof value === 'number' ? metric.unit(value) : value),
       },
     },
   });
-  elInvertSelectionBtn.style.display = '';
+  elInvertSelectionBtn.hidden = false;
 }
 
 function gscDataFlat() {
@@ -430,31 +545,37 @@ async function downloadZIPs() {
     resource_id: target.resource_id || elHostname.value.trim(),
     ...(target.hostname ? { hostname: target.hostname } : {}),
   };
-  if (!settings.resource_id) return;
+  if (!settings.resource_id) {
+    elHostname.focus();
+    return;
+  }
 
-  if (session.QrtxK == null) {
-    showError('Not connected to Google Search Console. Sign in, then reload this page.');
+  if (session.QrtxK == null && !(await refreshSession())) {
     chromeDownload = false;
     return;
   }
 
   downloading = true;
-  hideError();
+  hideAlerts();
   elDownloadToggleBtn.disabled = true;
+  updateEmptyState();
 
   const { summaryUrl, drilldowns } = buildExportUrls(settings, session.QrtxK, session.SNlM0e);
   const total = drilldowns.length + 1;
   let completed = 0;
   let failed = 0;
-  elFetchBar.style.display = 'block';
+  elFetchBar.hidden = false;
 
-  function updateProgress() {
+  function updateProgress(category) {
     completed++;
-    const remaining = total - completed;
-    document.title = `${remaining} to download`;
-    elFetchProgressLabel.textContent = `${remaining} to download`;
+    const next = completed < total ? (drilldowns[completed - 1]?.category ?? category) : category;
+    elFetchProgressLabel.textContent = completed < total
+      ? `Downloading ${CATEGORY_LABELS[next]}… ${completed} / ${total}`
+      : `Finishing… ${completed} / ${total}`;
+    document.title = `${completed}/${total} · ${APP_TITLE}`;
     elFetchProgress.style.width = `${Math.floor((completed / total) * 100)}%`;
   }
+  elFetchProgressLabel.textContent = `Downloading ${CATEGORY_LABELS.summary}… 0 / ${total}`;
 
   let dlGscData = {};
 
@@ -466,7 +587,7 @@ async function downloadZIPs() {
     failed++;
     console.error('Summary download failed:', err);
   }
-  updateProgress();
+  updateProgress('summary');
 
   for (const row of drilldowns) {
     try {
@@ -477,19 +598,20 @@ async function downloadZIPs() {
       failed++;
       console.warn('Skipping', row.category, row.id, err.message);
     }
-    updateProgress();
+    updateProgress(row.category);
     await delay(200);
   }
 
   // Finalise
-  elFetchBar.style.display = 'none';
-  document.title = 'GSC crawl stats downloader';
+  elFetchBar.hidden = true;
+  document.title = APP_TITLE;
   chromeDownload = false;
   downloading = false;
   elDownloadToggleBtn.disabled = false;
+  updateEmptyState();
 
   if (failed === total) {
-    showError('Download failed — no exports could be fetched. Check that you have access to this property.');
+    showError('Nothing could be downloaded. Check that this Google account has access to the property.');
     return;
   }
   if (failed > 0) showError(`${failed} of ${total} exports failed; the rest were saved.`);
@@ -500,7 +622,7 @@ async function downloadZIPs() {
   await chrome.storage.local.set({ [hostname]: merged });
   totalData[hostname] = merged;
 
-  elDownloadBtnTxt.textContent = shortLabel(hostname);
-  addDatalistOption(hostname);
-  showProperty(hostname, merged);
+  setTarget(target);
+  renderDatalist();
+  await showProperty(hostname, merged);
 }

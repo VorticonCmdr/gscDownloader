@@ -2,96 +2,162 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
-    <title>GSC crawl stats export</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GSC Crawl Stats</title>
   </head>
 
   <body>
     <div class="container-fluid p-0">
 
       <!-- Header bar -->
-      <div class="d-flex align-items-center px-3 py-2 mb-2 border-bottom bg-white">
-        <span class="fw-semibold text-secondary me-auto" style="font-size:0.85rem; letter-spacing:.04em;">GSC CRAWL STATS</span>
-        <small id="userEmail" class="text-muted">
+      <header class="app-header d-flex align-items-center gap-2 px-3 py-2 mb-2 border-bottom">
+        <span class="fw-semibold text-body-secondary me-auto" style="font-size:0.85rem; letter-spacing:.04em;">GSC CRAWL STATS</span>
+        <small id="userEmail" class="text-body-secondary" hidden>
           <i class="bi bi-person-circle"></i> <span id="userEmailText"></span>
         </small>
-      </div>
+        <button id="settingsBtn" type="button" class="btn btn-sm btn-link text-body-secondary p-1"
+          title="Settings: scheduled downloads, stored data, backup" aria-label="Settings">
+          <i class="bi bi-gear"></i>
+        </button>
+      </header>
 
       <!-- Alerts -->
-      <div id="notLoggedInMsg" class="px-3 mb-2" style="display: none">
-        <div class="alert alert-warning mb-0" role="alert">
+      <div id="notLoggedInMsg" class="px-3 mb-2" hidden>
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-0 py-2" role="alert">
           <i class="bi bi-person-x-fill"></i>
-          Not logged in to Google Search Console.
-          <a href="https://search.google.com/search-console" target="_blank" class="alert-link">Sign in</a>
+          <span class="me-auto">
+            Not signed in to Google Search Console.
+            <a href="https://search.google.com/search-console" target="_blank" class="alert-link">Sign in</a>, then come back here.
+          </span>
+          <button type="button" class="btn btn-sm btn-outline-secondary retry-btn">
+            <i class="bi bi-arrow-clockwise"></i> Retry
+          </button>
         </div>
       </div>
 
-      <div id="errorMsg" class="px-3 mb-2" style="display: none">
-        <div class="alert alert-danger mb-0" role="alert">
-          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
-          <span id="errorMsgText">Download failed. Please reload the page.</span>
+      <div id="errorMsg" class="px-3 mb-2" hidden>
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-0 py-2" role="alert">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="errorMsgText" class="me-auto"></span>
+          <button type="button" class="btn btn-sm btn-outline-secondary retry-btn">
+            <i class="bi bi-arrow-clockwise"></i> Retry
+          </button>
+        </div>
+      </div>
+
+      <div id="cronFailMsg" class="px-3 mb-2" hidden>
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-0 py-2" role="status">
+          <i class="bi bi-info-circle"></i>
+          <span id="cronFailText" class="me-auto"></span>
+          <a href="#" id="cronFailLink" class="alert-link text-nowrap">Open settings</a>
         </div>
       </div>
 
       <!-- Row A: Property bar -->
-      <div class="d-flex align-items-center gap-2 px-3 mb-2">
+      <div class="d-flex align-items-center gap-3 px-3 mb-2 flex-wrap">
+        <label for="hostname" class="visually-hidden">Search Console property</label>
         <input type="search" id="hostname" class="form-control form-control-sm" list="hostname-list"
-          placeholder="Property…" autocomplete="off" style="max-width:280px;">
+          placeholder="Choose a property…" autocomplete="off" style="max-width:320px;">
         <datalist id="hostname-list"></datalist>
-<small id="dataFreshness" class="text-muted text-nowrap"></small>
+        <button type="button" id="dataFreshness" class="freshness-link" hidden
+          title="GSC data lags 2–3 days behind. Click to download the latest."></button>
       </div>
 
       <!-- Row B: Chart controls + actions -->
       <div class="d-flex align-items-center gap-2 px-3 mb-3 flex-wrap">
+        <label for="metric" class="visually-hidden">Metric</label>
         <select id="metric" class="form-select form-select-sm" style="width:auto;">
-          <option value="Total crawl requests">Total crawl requests</option>
-          <option value="Total download size (Bytes)">Total download size (Bytes)</option>
-          <option value="Average response time (ms)">Average response time (ms)</option>
+          <option value="Total crawl requests">Crawl requests</option>
+          <option value="Total download size (Bytes)">Download size</option>
+          <option value="Average response time (ms)">Average response time</option>
         </select>
+        <label for="category" class="visually-hidden">Breakdown</label>
         <select id="category" class="form-select form-select-sm" style="width:auto;">
-          <option value="response">response</option>
-          <option value="file_type">file type</option>
-          <option value="purpose">purpose</option>
-          <option value="googlebot_type">googlebot type</option>
-          <option value="summary">summary</option>
+          <option value="response">by response code</option>
+          <option value="file_type">by file type</option>
+          <option value="purpose">by purpose</option>
+          <option value="googlebot_type">by Googlebot type</option>
+          <option value="summary">total only</option>
         </select>
+
         <div class="dropdown ms-auto">
           <button id="downloadToggleBtn" class="btn btn-primary btn-sm dropdown-toggle" type="button"
             data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-cloud-download"></i> <span id="downloadBtnTxt"></span>
+            <i class="bi bi-cloud-download"></i> <span id="downloadBtnTxt">Download</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a id="downloadBtn" class="dropdown-item" href="#">fetch</a></li>
-            <li><a id="downloadBtnSave" class="dropdown-item" href="#">fetch &amp; backup</a></li>
+            <li><a id="downloadBtn" class="dropdown-item" href="#">Download data</a></li>
+            <li>
+              <a id="downloadBtnSave" class="dropdown-item" href="#">
+                Download &amp; save ZIP files
+                <div class="small text-body-secondary">Also saves the 43 raw exports to Downloads/gscData</div>
+              </a>
+            </li>
           </ul>
         </div>
-        <button id="exportBtn" class="btn btn-outline-secondary btn-sm" type="button">
-          <i class="bi bi-download"></i> CSV
-        </button>
-      </div>
 
-      <!-- Chart card -->
-      <div class="card shadow-sm mx-3 mb-3">
-        <div class="card-header d-flex align-items-center py-1 px-3">
-          <small class="text-muted text-uppercase me-auto" style="font-size:0.7rem; letter-spacing:.04em;">Chart</small>
-          <button id="invertSelectionBtn" class="btn btn-outline-secondary btn-sm" type="button" style="display:none;">
-            <i class="bi bi-arrow-left-right"></i> Invert
+        <div class="dropdown">
+          <button id="exportBtn" class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Export CSV">
+            <i class="bi bi-filetype-csv"></i> CSV
           </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a id="exportFilteredBtn" class="dropdown-item" href="#">Filtered rows</a></li>
+            <li><a id="exportAllBtn" class="dropdown-item" href="#">All rows</a></li>
+          </ul>
         </div>
-        <div id="chart" style="height:380px; position:relative;"></div>
       </div>
 
-      <!-- Table card -->
-      <div class="card shadow-sm mx-3 mb-5">
-        <div id="table"></div>
+      <!-- Empty state -->
+      <div id="emptyState" class="card shadow-sm mx-3 mb-3" hidden>
+        <div class="card-body p-4" style="max-width:560px;">
+          <h2 class="h5 mb-1">Get your crawl stats</h2>
+          <p class="text-body-secondary mb-3">Three steps and you’ll see how Googlebot crawls your site.</p>
+          <ol class="empty-steps">
+            <li id="stepSignIn">
+              <span class="step-num">1</span>
+              <span class="me-auto">Sign in to Google Search Console</span>
+              <a href="https://search.google.com/search-console" target="_blank" class="btn btn-sm btn-outline-primary step-action">Sign in</a>
+            </li>
+            <li id="stepProperty">
+              <span class="step-num">2</span>
+              <span class="me-auto">Choose a property</span>
+              <button type="button" id="stepPropertyBtn" class="btn btn-sm btn-outline-primary step-action">Choose</button>
+            </li>
+            <li id="stepDownload">
+              <span class="step-num">3</span>
+              <span class="me-auto">Download its crawl stats</span>
+              <button type="button" id="stepDownloadBtn" class="btn btn-sm btn-primary step-action" disabled>Download</button>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <div id="dataView" hidden>
+        <!-- Chart card -->
+        <div class="card shadow-sm mx-3 mb-3">
+          <div class="card-header d-flex align-items-center py-1 px-3">
+            <small class="text-body-secondary text-uppercase me-auto" style="font-size:0.7rem; letter-spacing:.04em;">Chart</small>
+            <button id="invertSelectionBtn" class="btn btn-outline-secondary btn-sm" type="button"
+              title="Show hidden series and hide visible ones" hidden>
+              <i class="bi bi-arrow-left-right"></i> Invert
+            </button>
+          </div>
+          <div id="chart" style="height:380px; position:relative;"></div>
+        </div>
+
+        <!-- Table card -->
+        <div class="card shadow-sm mx-3 mb-5">
+          <div id="table"></div>
+        </div>
       </div>
 
     </div>
 
-    <!-- Fixed progress bar at bottom -->
-    <div id="fetchBar" class="position-fixed top-0 start-0 end-0" style="display:none; z-index:1050;">
+    <!-- Fixed progress bar -->
+    <div id="fetchBar" class="position-fixed top-0 start-0 end-0" hidden style="z-index:1050;">
       <div id="fetchProgressLabel" class="bg-dark bg-opacity-75 text-white text-center py-1"
-        style="font-size:0.75rem;"></div>
+        style="font-size:0.75rem;" role="status" aria-live="polite"></div>
       <div class="progress rounded-0" style="height:4px;">
         <div id="fetchProgress" class="progress-bar progress-bar-striped progress-bar-animated"
           role="progressbar" style="width:0%;"></div>

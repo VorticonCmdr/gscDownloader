@@ -189,5 +189,5 @@ export function mergeGscData(existing = {}, fragment = {}) {
 }
 
 /** Storage keys that are not property datasets. */
-export const RESERVED_KEYS = new Set(['cronJobs']);
+export const RESERVED_KEYS = new Set(['cronJobs', 'gscProperties']);
 export const isPropertyKey = (k) => !RESERVED_KEYS.has(k);

@@ -1,8 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 // Regenerate src/lib/icons.js: npm run icons
 const [root = '.', out = 'src/lib/icons.js'] = process.argv.slice(2);
-const names = ['arrow-counterclockwise','arrow-left-right','cloud-download','download','exclamation-triangle-fill',
-  'graph-up','lightning-fill','pause-fill','person-circle','person-x-fill','play-fill','plus-circle','trash'];
+const names = ['arrow-counterclockwise','arrow-left-right','cloud-download','exclamation-triangle-fill',
+  'graph-up','lightning-fill','pause-fill','person-circle','person-x-fill','play-fill','plus-circle','trash',
+  'gear','arrow-left','arrow-clockwise','archive','box-arrow-in-up','filetype-csv','info-circle'];
 const ver = JSON.parse(readFileSync(`${root}/node_modules/bootstrap-icons/package.json`, 'utf8')).version;
 const entries = names.map((n) => {
   const svg = readFileSync(`${root}/node_modules/bootstrap-icons/icons/${n}.svg`, 'utf8');

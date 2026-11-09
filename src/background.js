@@ -11,8 +11,21 @@ import { ALARM_PREFIX, alarmName, normalizeJob, scheduleJobAlarm } from './lib/s
 
 // ── Extension lifecycle ──────────────────────────────────────
 
-chrome.action.onClicked.addListener(() => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('crawl-stats.html') });
+// Focus an already-open crawl-stats tab instead of piling up new ones.
+chrome.action.onClicked.addListener(async () => {
+  const pageUrl = chrome.runtime.getURL('crawl-stats.html');
+  try {
+    const contexts = await chrome.runtime.getContexts({ contextTypes: ['TAB'] });
+    const existing = contexts.find((c) => c.tabId >= 0 && c.documentUrl?.startsWith(pageUrl));
+    if (existing) {
+      await chrome.tabs.update(existing.tabId, { active: true });
+      if (existing.windowId >= 0) await chrome.windows.update(existing.windowId, { focused: true });
+      return;
+    }
+  } catch (err) {
+    console.warn('Could not look up open tabs:', err.message);
+  }
+  chrome.tabs.create({ url: pageUrl });
 });
 
 // Alarms can be lost on update/reinstall and on browser restart; also migrates
@@ -20,22 +33,64 @@ chrome.action.onClicked.addListener(() => {
 chrome.runtime.onInstalled.addListener(() => { restoreAlarms(); });
 chrome.runtime.onStartup.addListener(() => { restoreAlarms(); });
 
-async function restoreAlarms() {
+// ── Toolbar badge: flag failed scheduled downloads ───────────
+
+// Same tooltip as the manifest's action.default_title, so it doesn't change after a badge update.
+const DEFAULT_TITLE = chrome.runtime.getManifest().action?.default_title || chrome.runtime.getManifest().name;
+
+async function updateFailureBadge(cronJobs) {
+  if (!cronJobs) ({ cronJobs = {} } = await chrome.storage.local.get('cronJobs'));
+  const failed = Object.values(cronJobs).filter((j) => j.lastError);
+  await chrome.action.setBadgeText({ text: failed.length ? '!' : '' });
+  if (failed.length) {
+    await chrome.action.setBadgeBackgroundColor({ color: '#dc3545' });
+    await chrome.action.setBadgeTextColor?.({ color: '#ffffff' });
+    await chrome.action.setTitle({
+      title: `${DEFAULT_TITLE}: ${failed.length} scheduled download${failed.length > 1 ? 's' : ''} failed. Details in settings.`,
+    });
+  } else {
+    await chrome.action.setTitle({ title: DEFAULT_TITLE });
+  }
+}
+
+// Covers job runs, and deletes/toggles/restores from the options page.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.cronJobs) updateFailureBadge(changes.cronJobs.newValue || {});
+});
+
+/** @param {{force?: boolean}} opts force: reschedule every job (used after a backup restore). */
+async function restoreAlarms({ force = false } = {}) {
   const { cronJobs = {} } = await chrome.storage.local.get('cronJobs');
-  let dirty = false;
+  const changedIds = new Set();
   for (const [id, job] of Object.entries(cronJobs)) {
     const { job: normalized, changed } = normalizeJob(job);
-    if (changed) { cronJobs[id] = normalized; dirty = true; }
+    if (changed) { cronJobs[id] = normalized; changedIds.add(id); }
   }
-  if (dirty) await chrome.storage.local.set({ cronJobs });
+  if (changedIds.size) await chrome.storage.local.set({ cronJobs });
 
-  // Drop alarms whose job no longer exists, then (re)schedule every job.
-  for (const alarm of await chrome.alarms.getAll()) {
-    if (alarm.name.startsWith(ALARM_PREFIX) && !cronJobs[alarm.name.slice(ALARM_PREFIX.length)]) {
-      await chrome.alarms.clear(alarm.name);
-    }
+  const alarms = new Map(
+    (await chrome.alarms.getAll())
+      .filter((a) => a.name.startsWith(ALARM_PREFIX))
+      .map((a) => [a.name.slice(ALARM_PREFIX.length), a])
+  );
+
+  // Drop alarms whose job no longer exists.
+  for (const [id, alarm] of alarms) {
+    if (!cronJobs[id]) await chrome.alarms.clear(alarm.name);
   }
-  for (const job of Object.values(cronJobs)) await scheduleJobAlarm(job);
+
+  // (Re)schedule only where needed. An existing one-shot alarm is left alone, even if
+  // overdue: on browser start Chrome fires missed alarms, and replacing it here
+  // would silently skip that run.
+  for (const [id, job] of Object.entries(cronJobs)) {
+    const alarm = alarms.get(id);
+    const isLegacyPeriodic = alarm?.periodInMinutes != null;
+    const needsAlarm = job.enabled && (force || !alarm || isLegacyPeriodic || changedIds.has(id));
+    const strayAlarm = !job.enabled && alarm;
+    if (needsAlarm || strayAlarm) await scheduleJobAlarm(job);
+  }
+
+  await updateFailureBadge(cronJobs);
 }
 
 // ── Messages from the options page ───────────────────────────
@@ -48,7 +103,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // keep channel open for async sendResponse
   }
   if (request.type === 'rescheduleAlarms') {
-    restoreAlarms().then(() => sendResponse({ success: true }), (err) => sendResponse({ error: err.message }));
+    restoreAlarms({ force: true }).then(() => sendResponse({ success: true }), (err) => sendResponse({ error: err.message }));
     return true;
   }
   return false;
@@ -79,11 +134,15 @@ async function runJobAndRecord(jobId) {
     return { error: 'Job not found' };
   }
 
+  // Store the raw message plus a machine-readable code; the pages turn them into
+  // user-facing text (friendlyError), so stored data stays accurate.
   let error = null;
+  let errorCode = null;
   try {
     await runCronJob(job);
   } catch (err) {
     error = err.message || String(err);
+    errorCode = err.code || (err instanceof TypeError ? 'NETWORK' : null);
     console.error('[cron] Job failed for', job.property, err);
   }
 
@@ -93,10 +152,12 @@ async function runJobAndRecord(jobId) {
 
   if (error) {
     current.lastError = error;
+    current.lastErrorCode = errorCode;
     current.lastErrorAt = new Date().toISOString();
   } else {
     current.lastRun = new Date().toISOString();
     current.lastError = null;
+    current.lastErrorCode = null;
     current.lastErrorAt = null;
   }
   await chrome.storage.local.set({ cronJobs: latest });
@@ -144,5 +205,9 @@ async function runCronJob(job) {
   }
 
   const total = drilldowns.length + 1;
-  if (failed === total) throw new Error(`All ${total} exports failed — check GSC access for ${job.property}`);
+  if (failed === total) {
+    const err = new Error(`All ${total} exports failed for ${job.property}`);
+    err.code = 'ALL_FAILED';
+    throw err;
+  }
 }
