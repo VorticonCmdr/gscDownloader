@@ -3,16 +3,15 @@
   "name": "GSC crawl stats downloader",
   "description": "a helper to efficiently download crawl data from GSC",
   "version": "2.1.0",
-  "homepage_url": "https://valentin.app/gscDownloader.html",
+  "homepage_url": "https://www.decompile.tools/gscDownloader/",
   "permissions": [
-    "tabs",
     "downloads",
     "storage",
     "unlimitedStorage",
     "alarms"
   ],
   "host_permissions": [
-    "https://search.google.com/"
+    "https://search.google.com/*"
   ],
   "background": {
     "service_worker": "background.js",

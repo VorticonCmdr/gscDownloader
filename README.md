@@ -7,7 +7,7 @@ A Chrome extension for efficiently downloading and visualising Google Search Con
 - **Download crawl stats** across all categories (response codes, file types, purpose, Googlebot type) for any GSC property you have access to
 - **Interactive chart** (Billboard.js) with selectable metrics and categories; instant legend toggle; **Invert** button to flip the visible series selection
 - **Filterable table** (Tabulator) with per-column header filters, sorting, pagination, and CSV export
-- **Scheduled downloads** via Chrome alarms — run hourly, every 6/12 hours, daily, or weekly at a chosen time of day (and day of week for weekly jobs), even when no extension tab is open
+- **Scheduled downloads** via Chrome alarms — run daily or weekly at a chosen time of day (and day of week for weekly jobs), even when no extension tab is open. GSC crawl stats update at most once a day, so faster intervals aren't offered
 - **Data freshness indicator** — shows the date of the latest stored data point and how many days ago it was fetched
 - **Stored Properties list** on the Options page — browse all properties with stored data, see date ranges, open them in the chart view, or delete individual datasets
 - **Backup & restore** — export all stored data as a ZIP; preview before restoring via an explicit Restore button
@@ -39,9 +39,20 @@ The extension is output to `dist/`.
 ## Development
 
 ```bash
-npm run dev      # Vite dev server with HMR
+npm run dev      # Rebuild dist/ on file changes (no HMR — reload the extension)
 npm run build    # Production build → dist/
+npm run lint     # ESLint over src/
 npm run package  # Build + zip → extension.zip
+```
+
+### Releasing
+
+`package.json` is the single source of truth for the version. `npm run build` syncs it into
+`src/manifest.json` (via `scripts/sync-version.js`), so never edit the manifest version by hand.
+
+```bash
+npm version minor          # or patch/major — bumps package.json, syncs manifest, commits, tags vX.Y.Z
+git push && git push --tags  # tag triggers the Release workflow → extension.zip on GitHub Releases
 ```
 
 ### Project structure
@@ -50,9 +61,12 @@ npm run package  # Build + zip → extension.zip
 src/
 ├── background.js       Service worker — alarm scheduling, background downloads
 ├── crawl-stats.html    Main extension page (opened on icon click)
-├── crawl-stats.js      Chart, table, download pipeline, WIZ token extraction
+├── crawl-stats.js      Chart, table, interactive downloads
 ├── options.html        Options page — backup/restore + scheduled jobs
-├── options.js          Cron job management UI
+├── options.js          Cron job management UI, stored properties, backup/restore
+├── lib/
+│   ├── gsc.js          Shared download pipeline: WIZ token extraction, export URLs, ZIP parsing, merging
+│   └── schedule.js     Shared scheduling: intervals, next-run calculation, alarms
 ├── manifest.json       MV3 manifest
 └── icons/
     ├── icon16.png
@@ -84,10 +98,14 @@ src/
 
 1. Open the extension **Options** page (`chrome://extensions` → Details → Extension options)
 2. Under **Scheduled Downloads**, enter a property (e.g. `https://example.com/` or `sc-domain:example.com`)
-3. Choose an interval, a time of day (e.g. `03:00`), and — for weekly jobs — the day of the week
-4. Click **Add** — Chrome will wake the service worker at the next occurrence of the chosen time and repeat at the selected interval
+3. Choose **Daily** or **Weekly**, a time of day (e.g. `03:00`), and — for weekly jobs — the day of the week
+4. Click **Add** — Chrome wakes the service worker at the next occurrence of the chosen local time (DST-safe); after each run the next one is scheduled
 5. Use the **⚡ Run now** button to trigger a job immediately for testing
 6. Jobs survive browser restarts and extension updates; the **Next run** column shows the upcoming scheduled time
+7. If a run fails (e.g. you were signed out of Google), the **Status** column shows **Failed** — hover it for the error
+8. Each export is saved as soon as it arrives, so an interrupted run still keeps what it fetched
+
+Jobs created with hourly / 6-hour / 12-hour intervals in v2.1 or earlier are migrated to daily automatically.
 
 ### Stored Properties
 
@@ -100,8 +118,12 @@ The Options page lists every property that has data stored locally:
 ### Backup & restore
 
 - **Backup data** exports all stored crawl data as a timestamped ZIP
-- Drag a backup ZIP onto the drop area (or use the file picker) to stage it; the number of properties found is shown before anything is written
-- Click **Restore** to apply the backup to storage
+- Drag a backup ZIP onto the drop area (or use the file picker) to stage it; the number of properties and scheduled jobs found is shown before anything is written
+- Click **Restore** to merge the backup into storage. Dates you have locally but the backup doesn't are kept; for dates in both, the backup's values win. Restored scheduled jobs are re-armed immediately
+
+## Privacy
+
+All data stays on your device (`chrome.storage.local`). The extension only talks to `search.google.com` using your existing session; it has no server, analytics or third parties. Full policy: [decompile.tools/gscDownloader/#privacy](https://www.decompile.tools/gscDownloader/#privacy)
 
 ## Requirements
 
@@ -110,4 +132,4 @@ The Options page lists every property that has data stored locally:
 
 ## Homepage
 
-[https://vorticoncmdr.github.io/gscDownloader/](https://vorticoncmdr.github.io/gscDownloader/)
+[https://www.decompile.tools/gscDownloader/](https://www.decompile.tools/gscDownloader/)

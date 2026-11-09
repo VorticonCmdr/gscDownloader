@@ -237,6 +237,14 @@
       color: var(--muted);
     }
 
+    /* ── Privacy ── */
+    .privacy { border-top: 1px solid var(--border); }
+    .privacy .section > p { margin-bottom: 32px; }
+    .privacy dl { max-width: 720px; }
+    .privacy dt { font-weight: 700; margin-top: 20px; }
+    .privacy dd { color: var(--muted); margin-top: 4px; }
+    .privacy .updated { font-size: 0.85rem; color: var(--muted); margin-top: 32px; }
+
     footer a { color: var(--muted); }
     footer a:hover { color: var(--text); }
   </style>
@@ -283,7 +291,7 @@
       <div class="feature-card">
         <div class="feature-icon">⏰</div>
         <h3>Scheduled downloads</h3>
-        <p>Set hourly, daily, or weekly jobs via Chrome alarms — runs in the background even without an open tab.</p>
+        <p>Set daily or weekly jobs at a time of your choice via Chrome alarms — runs in the background even without an open tab.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🗄️</div>
@@ -354,12 +362,59 @@
     </div>
   </div>
 
+  <!-- Privacy policy -->
+  <div class="privacy" id="privacy">
+    <div class="section">
+      <div class="section-label">Privacy</div>
+      <h2>Privacy policy</h2>
+      <p>GSC Crawl Stats Downloader has no server. It doesn't collect, transmit, sell, or share your data.</p>
+
+      <dl>
+        <dt>What the extension accesses</dt>
+        <dd>
+          Crawl-stats exports from Google Search Console for the properties you choose. To get them, it uses your
+          existing signed-in Google session in Chrome (cookies and the page's request token) to call
+          <code>search.google.com</code>. It also reads the email address of the signed-in account and shows it in the
+          extension header. When a Search Console tab is open, it reads that tab's address to pre-select the property.
+        </dd>
+
+        <dt>Where data is stored</dt>
+        <dd>
+          Downloaded crawl statistics and your scheduled-download settings are stored only on your device, in the
+          extension's local storage (<code>chrome.storage.local</code>). If you use “fetch &amp; backup” or
+          “Backup data”, files are saved to your Downloads folder.
+        </dd>
+
+        <dt>What is sent elsewhere</dt>
+        <dd>
+          Nothing. The extension only talks to <code>search.google.com</code>, the same as when you use Search
+          Console yourself. It has no analytics, tracking, advertising, or third-party services, and your email
+          address and credentials never leave your browser.
+        </dd>
+
+        <dt>Retention and deletion</dt>
+        <dd>
+          Data stays until you delete it. You can remove individual properties under Options → Stored Properties.
+          Uninstalling the extension deletes all of its stored data.
+        </dd>
+
+        <dt>Contact</dt>
+        <dd>
+          Questions or concerns: open an issue on
+          <a href="https://github.com/VorticonCmdr/gscDownloader/issues">GitHub</a>.
+        </dd>
+      </dl>
+      <p class="updated">Last updated: November 2026</p>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer>
     <p>
       <a href="https://github.com/VorticonCmdr/gscDownloader">GitHub</a> ·
       <a href="https://github.com/VorticonCmdr/gscDownloader/releases">Releases</a> ·
-      <a href="https://github.com/VorticonCmdr/gscDownloader/blob/master/README.md">Docs</a>
+      <a href="https://github.com/VorticonCmdr/gscDownloader/blob/master/README.md">Docs</a> ·
+      <a href="#privacy">Privacy</a>
     </p>
   </footer>
 

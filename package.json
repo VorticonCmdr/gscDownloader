@@ -6,6 +6,7 @@
     "prebuild": "node scripts/sync-version.js",
     "dev": "vite build --watch",
     "build": "vite build",
+    "lint": "eslint src/",
     "package": "npm run build && cd dist && zip -r ../extension.zip . -x '*.map'",
     "version": "node scripts/sync-version.js && git add src/manifest.json"
   },
