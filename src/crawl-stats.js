@@ -2,7 +2,6 @@ import bb, { line } from 'billboard.js';
 import 'billboard.js/dist/billboard.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Dropdown } from 'bootstrap';
-import 'bootstrap-icons/font/bootstrap-icons.css';
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import 'tabulator-tables/dist/css/tabulator_bootstrap5.min.css';
 import {
@@ -15,6 +14,9 @@ import {
   parseDrilldownZip,
   parseSummaryZip,
 } from './lib/gsc.js';
+import { hydrateIcons } from './lib/icons.js';
+
+hydrateIcons();
 
 let chromeDownload = false;
 let downloading = false;

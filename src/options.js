@@ -1,8 +1,10 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css';
 import JSZip from 'jszip';
 import { isPropertyKey, mergeGscData } from './lib/gsc.js';
+import { hydrateIcons, iconSvg } from './lib/icons.js';
 import { DAYS, SCHEDULES, alarmName, normalizeJob, scheduleJobAlarm } from './lib/schedule.js';
+
+hydrateIcons();
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,7 +20,7 @@ function el(tag, props = {}, ...children) {
   return node;
 }
 
-const icon = (name) => el('i', { className: `bi bi-${name}` });
+const icon = iconSvg;
 
 // ── Backup & Restore ─────────────────────────────────────────
 

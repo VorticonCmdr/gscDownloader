@@ -1,0 +1,9 @@
+/* Inline SVG icons: same metrics as the bootstrap-icons webfont they replace. */
+svg.bi {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  overflow: visible;
+  flex-shrink: 0;
+}
