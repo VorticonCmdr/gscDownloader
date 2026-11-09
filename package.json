@@ -1,6 +1,6 @@
 {
   "name": "gsc-crawl-stats-downloader",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "type": "module",
   "scripts": {
     "prebuild": "node scripts/sync-version.js",
